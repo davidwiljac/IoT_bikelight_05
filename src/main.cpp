@@ -10,6 +10,7 @@ int LDRpin = 27;
 int manualButtonpin = 34;
 int AccelPin = 35;
 int INT1Pin = 33;
+int RXPin = 16, TxPin = 17;
 
 // Global variables
 int8_t mode = 0; // 0 = Active, 1 = Parked, 2 = Storage
@@ -17,17 +18,26 @@ int8_t mode = 0; // 0 = Active, 1 = Parked, 2 = Storage
 Adafruit_MAX17048 batteryTracker;
 Adafruit_ADXL343 accel = Adafruit_ADXL343(12345);
 
+uint32_t GPSBaud = 9600;
+TinyGPSPlus gps;
+HardwareSerial gpsSerial(2);
+
 bool buttonState = false;
 
 uint64_t lastOnTime = 0;
+uint64_t lastGPSTime = 0;
+uint64_t GPSInterval = 1000; // 1 second
 bool LEDstate = false;
 bool lowLight = false;
 
 int_config g_int_config_enabled = { 0 };
 int_config g_int_config_map = { 0 };
 
+static volatile bool accFlag = false;
+
+float* pos = new float[2]; // Array to store the position
 // Timer variables
-hw_timer_t *Timer0_Cfg = NULL;
+uint64_t lastMoveTime = 0;
 
 void setup()
 {
@@ -38,14 +48,42 @@ void setup()
   pinMode(manualLEDpin, OUTPUT);
   pinMode(AccelPin, INPUT);
   pinMode(INT1Pin, INPUT);
+  pinMode(22, INPUT_PULLUP);
+  pinMode(21, INPUT_PULLUP);
+  delay(1000);
+  Serial.begin(115200);
+  
+  Wire.begin(21, 22); // SDA, SCL
+  Wire.setClock(100000); // Set I2C clock speed to 100 kHz
 
   // Set up the battery tracker
   batteryTracker.begin();
 
   // Set up the accelerometer
-  accel.begin();
+  if(!accel.begin(0x53)){
+    Serial.println("Failed to find ADXL343 chip");
+  }
+
+  delay(100);
   accel.setRange(ADXL343_RANGE_2_G);
-  attachInterrupt(digitalPinToInterrupt(INT1Pin), int1_isr, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(INT1Pin), int1_isr, RISING);
+
+  Wire.beginTransmission(0x53);
+  Wire.write(0x31); // Read data format register
+  Wire.endTransmission();
+  Wire.requestFrom(0x53, 1);
+  uint8_t currenConfig = 0;
+  if (Wire.available())
+  {
+    currenConfig = Wire.read();
+  }
+  currenConfig &= 0xDF; //Set accelerometer to active low
+
+  Wire.beginTransmission(0x53);
+  Wire.write(0x31); // Write data format register
+  Wire.write(currenConfig);
+  Wire.endTransmission();
+
   g_int_config_enabled.bits.single_tap = true;
   accel.enableInterrupts(g_int_config_enabled);
 
@@ -54,32 +92,61 @@ void setup()
 
   accel.checkInterrupts();
 
-  Serial.begin(115200);
-  esp_sleep_enable_ext0_wakeup((gpio_num_t)manualButtonpin, HIGH); // Wake up on button press
+  // Set up the GPS¨
+  gpsSerial.begin(GPSBaud, SERIAL_8N1, RXPin, TxPin);
 
-  Serial.println("");
+  esp_sleep_enable_ext1_wakeup((1ULL << INT1Pin) | (1ULL << manualButtonpin), ESP_EXT1_WAKEUP_ANY_HIGH);
+  esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
+  switch(wakeupReason){
+    case ESP_SLEEP_WAKEUP_TIMER:
+      Serial.println("Woke up from timer sleep");
+      mode = 2;
+      break;
+  }
+  Serial.println("Setup complete!");
+
+  GNSS(&gpsSerial, &gps, pos);
+  Serial.print("Latitude: ");
+  Serial.println(pos[0], 6);
+  Serial.print("Longitude: ");
+  Serial.println(pos[1], 6);
 }
 
 void loop()
 {  
-  accel.checkInterrupts();
+  if(accFlag){
+    accFlag = false;
+    accel.checkInterrupts();
+  }
+
   switch (mode)
   {
   case 0: // Active mode
+    GPSInterval = 5000; // 5 seconds
     active();
     break;
-
+  case 1: // Parked mode
+    GPSInterval = 120000; // 2 minutes
+    park();
+    break;
+  case 2:
+    GPSInterval = 1200000; // 20 minutes
+    storage();
+    break;
   default:
     break;
   }
 }
 
 void int1_isr(void){
-  Serial.println("Wake up!");
+  lastMoveTime = millis();
+  accFlag = true;
 }
 
 void active()
 {
+  accel.checkInterrupts();
+
   // Reads battery status
   float batteryPercent = batteryTracker.cellPercent();
   float dischargeRate = batteryTracker.chargeRate();
@@ -95,6 +162,7 @@ void active()
   {
     if (!lowLight)
     {
+      Serial.println("Low light detected!");
       lastOnTime = millis();
     }
     lowLight = true;
@@ -114,8 +182,63 @@ void active()
     LEDstate = false;
   }
 
+  if(millis() - lastMoveTime > 10000){ // 120000
+    mode = 1; // Switch to park mode after 2 minutes of inactivity
+    Serial.println("Switching to park mode due to inactivity.");
+  }
+
   digitalWrite(manualLEDpin, buttonState);
   digitalWrite(LEDpin, LEDstate);
+  if(millis() - lastGPSTime > GPSInterval){
+    lastGPSTime = millis();
+    GNSS(&gpsSerial, &gps, pos);
+    Serial.print("Latitude: ");
+    Serial.println(pos[0], 6);
+    Serial.print("Longitude: ");
+    Serial.println(pos[1], 6);
+  }
 
   modem_sleep(1000); // Sleep for 1 second
+}
+
+void park(){
+  digitalWrite(manualLEDpin, LOW);
+  digitalWrite(LEDpin, LOW);
+  LEDstate = false;
+  buttonState = false;
+
+  WIFI_scanning(pos);
+  if(accFlag){
+    accFlag = false;
+    mode = 0;
+    accel.checkInterrupts();
+    Serial.println("Going back to active mode!");
+  }
+
+  if(millis() - lastMoveTime > 20000){
+    mode = 2; // Switch to storage mode after 5 minutes of inactivity
+    Serial.println("Switching to storage mode due to inactivity.");
+  }
+  if(millis() - lastGPSTime > GPSInterval){
+    lastGPSTime = millis();
+    GNSS(&gpsSerial, &gps, pos);
+    Serial.print("Latitude: ");
+    Serial.println(pos[0], 6);
+    Serial.print("Longitude: ");
+    Serial.println(pos[1], 6);
+  }
+  esp_sleep_enable_timer_wakeup(300 * 1000000); // Sleep for 5 minutes
+}
+
+void storage(){
+  if(millis() - lastGPSTime > GPSInterval){
+    lastGPSTime = millis();
+    GNSS(&gpsSerial, &gps, pos);
+    Serial.print("Latitude: ");
+    Serial.println(pos[0], 6);
+    Serial.print("Longitude: ");
+    Serial.println(pos[1], 6);
+  }
+  esp_sleep_enable_timer_wakeup(30 * 1000000);
+  esp_deep_sleep_start();
 }
