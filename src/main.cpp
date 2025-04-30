@@ -104,12 +104,6 @@ void setup()
       break;
   }
   Serial.println("Setup complete!");
-
-  GNSS(&gpsSerial, &gps, pos);
-  Serial.print("Latitude: ");
-  Serial.println(pos[0], 6);
-  Serial.print("Longitude: ");
-  Serial.println(pos[1], 6);
 }
 
 void loop()
@@ -126,11 +120,9 @@ void loop()
     active();
     break;
   case 1: // Parked mode
-    GPSInterval = 120000; // 2 minutes
     park();
     break;
   case 2:
-    GPSInterval = 1200000; // 20 minutes
     storage();
     break;
   default:
@@ -148,9 +140,10 @@ void active()
   accel.checkInterrupts();
 
   // Reads battery status
+  /*
   float batteryPercent = batteryTracker.cellPercent();
   float dischargeRate = batteryTracker.chargeRate();
-
+  */
   // Read the light sensor
   int light = analogRead(LDRpin);
 
@@ -184,7 +177,10 @@ void active()
 
   if(millis() - lastMoveTime > 10000){ // 120000
     mode = 1; // Switch to park mode after 2 minutes of inactivity
+    GPSInterval = 120 * 1000; // 120 seconds
+    lastGPSTime = millis() - GPSInterval; // Force GPS to update
     Serial.println("Switching to park mode due to inactivity.");
+    return;
   }
 
   digitalWrite(manualLEDpin, buttonState);
@@ -192,10 +188,15 @@ void active()
   if(millis() - lastGPSTime > GPSInterval){
     lastGPSTime = millis();
     GNSS(&gpsSerial, &gps, pos);
-    Serial.print("Latitude: ");
-    Serial.println(pos[0], 6);
-    Serial.print("Longitude: ");
-    Serial.println(pos[1], 6);
+    if(pos[0] == 0 && pos[1] == 0){
+      Serial.println("No GPS fix, trying again in 5 seconds.");
+    }
+    else{
+      Serial.print("Latitude: ");
+      Serial.println(pos[0], 6);
+      Serial.print("Longitude: ");
+      Serial.println(pos[1], 6);
+    }
   }
 
   modem_sleep(1000); // Sleep for 1 second
@@ -207,7 +208,6 @@ void park(){
   LEDstate = false;
   buttonState = false;
 
-  WIFI_scanning(pos);
   if(accFlag){
     accFlag = false;
     mode = 0;
@@ -217,28 +217,45 @@ void park(){
 
   if(millis() - lastMoveTime > 20000){
     mode = 2; // Switch to storage mode after 5 minutes of inactivity
+    GPSInterval = 30 * 1000; // 30 seconds
+    lastGPSTime = millis() - GPSInterval; // Force GPS to update
     Serial.println("Switching to storage mode due to inactivity.");
+    return;
   }
-  if(millis() - lastGPSTime > GPSInterval){
+  if(millis() - lastGPSTime >= GPSInterval){
     lastGPSTime = millis();
     GNSS(&gpsSerial, &gps, pos);
-    Serial.print("Latitude: ");
-    Serial.println(pos[0], 6);
-    Serial.print("Longitude: ");
-    Serial.println(pos[1], 6);
+    if(pos[0] == 0.0 && pos[1] == 0.0){ // If fix is not achived try again in 5 seconds
+      Serial.println("No GPS fix, trying again in 5 seconds.");
+      GPSInterval = 5000; // 5 seconds
+    }
+    else{ // If fix is achieved, go to sleep for 30 seconds
+      Serial.print("Latitude: ");
+      Serial.println(pos[0], 6);
+      Serial.print("Longitude: ");
+      Serial.println(pos[1], 6);
+      GPSInterval = 120 * 1000; // 2 minutes
+      esp_sleep_enable_timer_wakeup(300 * 1000000); // Sleep for 5 minutes
+    }
   }
-  esp_sleep_enable_timer_wakeup(300 * 1000000); // Sleep for 5 minutes
 }
 
 void storage(){
-  if(millis() - lastGPSTime > GPSInterval){
+  if(millis() - lastGPSTime >= GPSInterval){
     lastGPSTime = millis();
     GNSS(&gpsSerial, &gps, pos);
-    Serial.print("Latitude: ");
-    Serial.println(pos[0], 6);
-    Serial.print("Longitude: ");
-    Serial.println(pos[1], 6);
+    if(pos[0] == 0.0 && pos[1] == 0.0){ // If fix is not achived try again in 5 seconds
+      Serial.println("No GPS fix, trying again in 5 seconds.");
+      GPSInterval = 5000; // 5 seconds
+    } else{ // If fix is achieved, go to sleep for 30 seconds
+      Serial.print("Latitude: ");
+      Serial.println(pos[0], 6);
+      Serial.print("Longitude: ");
+      Serial.println(pos[1], 6);
+      GPSInterval = 30 * 1000; // 30 seconds
+      Serial.println("Going to sleep for 30 seconds.");
+      esp_sleep_enable_timer_wakeup(30 * 1000000);
+      esp_deep_sleep_start();
+    }
   }
-  esp_sleep_enable_timer_wakeup(30 * 1000000);
-  esp_deep_sleep_start();
 }

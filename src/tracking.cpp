@@ -16,7 +16,8 @@ bool GNSS(HardwareSerial* gpsSerial, TinyGPSPlus* gps, float *pos)
     }
     else
     {
-        Serial.println("GPS location not valid");
+        pos[0] = 0.0;
+        pos[1] = 0.0;
         return false;
     }
 }
