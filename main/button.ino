@@ -1,6 +1,8 @@
 #include "button.h"
 LinkedList<bool> buttonStateList = LinkedList<bool>();
+
 bool button_has_been_released = true;
+
 void updateButtonStateList(bool state)
 {
     buttonStateList.add(state);
