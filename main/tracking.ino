@@ -65,6 +65,8 @@ bool GNSS(HardwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos) {
 
 bool WIFI_scanning(float *pos) {
 
+  pos[0] = 0.0;
+  pos[1] = 0.0;
   // Create a DynamicJsonDocument for parsing the response
   DynamicJsonDocument jsonBuffer(1024);
 
@@ -72,38 +74,38 @@ bool WIFI_scanning(float *pos) {
   int n = WiFi.scanNetworks();
   Serial.println("Scan done");
 
-  if (n == 0) {
-    Serial.println("No networks found");
-  } else {
-    Serial.print(n);
-    Serial.println(" networks found...");
+//   if (n == 0) {
+//     Serial.println("No networks found");
+//   } else {
+//     Serial.print(n);
+//     Serial.println(" networks found...");
 
-    if (more_text) {
-      // Output formatted JSON to Serial for debugging
-      Serial.println("{");
-      Serial.println("\"homeMobileCountryCode\": 234,");
-      Serial.println("\"homeMobileNetworkCode\": 27,");
-      Serial.println("\"radioType\": \"gsm\",");
-      Serial.println("\"carrier\": \"Vodafone\",");
-      Serial.println("\"wifiAccessPoints\": [");
-      for (int i = 0; i < n; ++i) {
-        Serial.println("{");
-        Serial.print("\"macAddress\" : \"");
-        Serial.print(WiFi.BSSIDstr(i));
-        Serial.println("\",");
-        Serial.print("\"signalStrength\": ");
-        Serial.println(WiFi.RSSI(i));
-        if (i < n - 1) {
-          Serial.println("},");
-        } else {
-          Serial.println("}");
-        }
-      }
-      Serial.println("]");
-      Serial.println("}");
-    }
-    Serial.println();
-  }
+//     if (more_text) {
+//       // Output formatted JSON to Serial for debugging
+//       Serial.println("{");
+//       Serial.println("\"homeMobileCountryCode\": 234,");
+//       Serial.println("\"homeMobileNetworkCode\": 27,");
+//       Serial.println("\"radioType\": \"gsm\",");
+//       Serial.println("\"carrier\": \"Vodafone\",");
+//       Serial.println("\"wifiAccessPoints\": [");
+//       for (int i = 0; i < n; ++i) {
+//         Serial.println("{");
+//         Serial.print("\"macAddress\" : \"");
+//         Serial.print(WiFi.BSSIDstr(i));
+//         Serial.println("\",");
+//         Serial.print("\"signalStrength\": ");
+//         Serial.println(WiFi.RSSI(i));
+//         if (i < n - 1) {
+//           Serial.println("},");
+//         } else {
+//           Serial.println("}");
+//         }
+//       }
+//       Serial.println("]");
+//       Serial.println("}");
+//     }
+//     Serial.println();
+//   }
 
   // Build the JSON string for the API request
   jsonString = "{\n";
@@ -129,15 +131,15 @@ bool WIFI_scanning(float *pos) {
   jsonString += "]\n";
   jsonString += "}\n";
 
-  Serial.println("");
+//   Serial.println("");
 
   // Needs actual root ca
   WiFiClientSecure client;
   client.setInsecure();  // Disable certificate verification (use with caution)
 
-  Serial.print("Requesting URL: ");
-  Serial.println("https://" + String(Host) + thisPage + key);
-  Serial.println("");
+//   Serial.print("Requesting URL: ");
+//   Serial.println("https://" + String(Host) + thisPage + key);
+//   Serial.println("");
 
   if (client.connect(Host, 443)) {
     Serial.println("Connected");
@@ -157,7 +159,7 @@ bool WIFI_scanning(float *pos) {
   while (client.available()) {
     String line = client.readStringUntil('\r');
     if (more_text) {
-      Serial.print(line);
+    //   Serial.print(line);
     }
     DeserializationError error = deserializeJson(jsonBuffer, line);
     if (!error) {
@@ -173,18 +175,9 @@ bool WIFI_scanning(float *pos) {
     }
   }
 
-  Serial.println("Closing connection");
-  Serial.println();
+//   Serial.println("Closing connection");
+//   Serial.println();
   client.stop();
 
-  Serial.println("TXing");
-  // Send a comma-separated string of latitude, longitude, and accuracy
-  // myLora.tx(String(latitude, 6) + "," + String(longitude, 6));
-
-  Serial.print("Latitude = ");
-  Serial.println(pos[0], 6);
-  Serial.print("Longitude = ");
-  Serial.println(pos[1], 6);
-  Serial.print("Accuracy = ");
-  Serial.println(accuracy);
+  return true;
 }
