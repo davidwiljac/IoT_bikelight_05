@@ -14,6 +14,7 @@
 #define GPS_interval_timeout 60 * 1000 // 1 minute
 
 #define GPS_max_tries 5            // Max tries to get a fix
+#define WIFI_max_tries 5           // Max tries to get a fix
 
 #define swtich_to_park_time 20 * 1000 // 20 seconds
 #define swtich_to_storage_time 20 * 1000 // 20 seconds
