@@ -8,10 +8,9 @@ int LEDpin = 2;
 int manualLEDpin = 32;
 int LDRpin = 27;
 int manualButtonpin = 34;
-int AccelPin = 35;
 int INT1Pin = 33;
 int RXPin = 16, TxPin = 17;
-
+int SDAPin = 21, SCLPin = 22; // I2C pins
 // Global variables
 int8_t mode = 0; // 0 = Active, 1 = Parked, 2 = Storage
 
@@ -26,7 +25,8 @@ bool buttonState = false;
 
 uint64_t lastOnTime = 0;
 uint64_t lastGPSTime = 0;
-uint64_t GPSInterval = 1000; // 1 second
+uint64_t GPSInterval = 5000; // 5 second
+
 bool LEDstate = false;
 bool lowLight = false;
 
@@ -46,14 +46,11 @@ void setup()
   pinMode(LDRpin, INPUT);
   pinMode(manualButtonpin, INPUT);
   pinMode(manualLEDpin, OUTPUT);
-  pinMode(AccelPin, INPUT);
   pinMode(INT1Pin, INPUT);
-  pinMode(22, INPUT_PULLUP);
-  pinMode(21, INPUT_PULLUP);
   delay(1000);
   Serial.begin(115200);
   
-  Wire.begin(21, 22); // SDA, SCL
+  Wire.begin(SDAPin, SCLPin); // SDA, SCL
   Wire.setClock(100000); // Set I2C clock speed to 100 kHz
 
   // Set up the battery tracker
@@ -116,7 +113,6 @@ void loop()
   switch (mode)
   {
   case 0: // Active mode
-    GPSInterval = 5000; // 5 seconds
     active();
     break;
   case 1: // Parked mode
@@ -175,9 +171,10 @@ void active()
     LEDstate = false;
   }
 
-  if(millis() - lastMoveTime > 10000){ // 120000
-    mode = 1; // Switch to park mode after 2 minutes of inactivity
-    GPSInterval = 120 * 1000; // 120 seconds
+  if(millis() - lastMoveTime > swtich_to_park_time){
+    mode = 1;
+    GPSInterval = GPS_interval_parked;
+    lastMoveTime = millis(); // Reset the last move time
     lastGPSTime = millis() - GPSInterval; // Force GPS to update
     Serial.println("Switching to park mode due to inactivity.");
     return;
@@ -185,21 +182,11 @@ void active()
 
   digitalWrite(manualLEDpin, buttonState);
   digitalWrite(LEDpin, LEDstate);
-  if(millis() - lastGPSTime > GPSInterval){
-    lastGPSTime = millis();
-    GNSS(&gpsSerial, &gps, pos);
-    if(pos[0] == 0 && pos[1] == 0){
-      Serial.println("No GPS fix, trying again in 5 seconds.");
-    }
-    else{
-      Serial.print("Latitude: ");
-      Serial.println(pos[0], 6);
-      Serial.print("Longitude: ");
-      Serial.println(pos[1], 6);
-    }
-  }
+  
+  GPSInterval = GPS_interval_active; // 5 seconds
+  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 
-  modem_sleep(1000); // Sleep for 1 second
+  modem_sleep(sleep_time_active); // Sleep for 1 second
 }
 
 void park(){
@@ -215,47 +202,17 @@ void park(){
     Serial.println("Going back to active mode!");
   }
 
-  if(millis() - lastMoveTime > 20000){
+  if(millis() - lastMoveTime > swtich_to_storage_time){
     mode = 2; // Switch to storage mode after 5 minutes of inactivity
-    GPSInterval = 30 * 1000; // 30 seconds
+    GPSInterval = GPS_interval_parked; // 30 seconds
+    lastMoveTime = millis(); // Reset the last move time
     lastGPSTime = millis() - GPSInterval; // Force GPS to update
     Serial.println("Switching to storage mode due to inactivity.");
     return;
   }
-  if(millis() - lastGPSTime >= GPSInterval){
-    lastGPSTime = millis();
-    GNSS(&gpsSerial, &gps, pos);
-    if(pos[0] == 0.0 && pos[1] == 0.0){ // If fix is not achived try again in 5 seconds
-      Serial.println("No GPS fix, trying again in 5 seconds.");
-      GPSInterval = 5000; // 5 seconds
-    }
-    else{ // If fix is achieved, go to sleep for 30 seconds
-      Serial.print("Latitude: ");
-      Serial.println(pos[0], 6);
-      Serial.print("Longitude: ");
-      Serial.println(pos[1], 6);
-      GPSInterval = 120 * 1000; // 2 minutes
-      esp_sleep_enable_timer_wakeup(300 * 1000000); // Sleep for 5 minutes
-    }
-  }
+  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
 void storage(){
-  if(millis() - lastGPSTime >= GPSInterval){
-    lastGPSTime = millis();
-    GNSS(&gpsSerial, &gps, pos);
-    if(pos[0] == 0.0 && pos[1] == 0.0){ // If fix is not achived try again in 5 seconds
-      Serial.println("No GPS fix, trying again in 5 seconds.");
-      GPSInterval = 5000; // 5 seconds
-    } else{ // If fix is achieved, go to sleep for 30 seconds
-      Serial.print("Latitude: ");
-      Serial.println(pos[0], 6);
-      Serial.print("Longitude: ");
-      Serial.println(pos[1], 6);
-      GPSInterval = 30 * 1000; // 30 seconds
-      Serial.println("Going to sleep for 30 seconds.");
-      esp_sleep_enable_timer_wakeup(30 * 1000000);
-      esp_deep_sleep_start();
-    }
-  }
+  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }

@@ -7,6 +7,22 @@
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
 
+// Constants
+#define GPS_interval_active 5 * 1000   // 5 seconds
+#define GPS_interval_parked 120 * 1000 // 2 minutes
+#define GPS_interval_storage 30 * 1000 // 30 seconds
+#define GPS_interval_timeout 60 * 1000 // 1 minute
+
+#define GPS_max_tries 5            // Max tries to get a fix
+
+#define swtich_to_park_time 20 * 1000 // 20 seconds
+#define swtich_to_storage_time 20 * 1000 // 20 seconds
+
+#define sleep_time_active 1 * 100000   // 1 second
+#define sleep_time_park 10 * 1000000   // 10 seconds
+#define sleep_time_storage 30 * 1000000 // 30 seconds
+
+
 bool readButton();
 bool toggleButtonState(bool buttonState, LinkedList<bool> buttonStateList, bool button_has_been_released);
 void active();
