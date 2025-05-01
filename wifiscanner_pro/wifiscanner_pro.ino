@@ -45,8 +45,11 @@ unsigned long WifiTimer = 0;
 // const char* myssid = "simsekkkk";  // your network SSID (name)
 // const char* mypass = "yavuz123";   // your network password
 
-const char* myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
-const char* mypass = "HotSpot!36";   // your network password
+//const char* myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
+//const char* mypass = "HotSpot!36";   // your network password
+
+const char* myssid = "TP-Link_79DE";
+const char* mypass = "00895576";
 
 // Credentials for Google GeoLocation API...
 const char* Host = "www.googleapis.com";

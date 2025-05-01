@@ -5,7 +5,7 @@
 #include "Adafruit_Sensor.h"
 #include "Adafruit_ADXL343.h"
 // #include <TinyGPSPlus.h>
-
+#include "driver/gpio.h"
 #include "HT_TinyGPS++.h"
 
 #include <SoftwareSerial.h>

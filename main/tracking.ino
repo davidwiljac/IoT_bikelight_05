@@ -71,7 +71,7 @@ bool WIFI_scanning(float *pos) {
   DynamicJsonDocument jsonBuffer(1024);
 
   Serial.println("Scan start");
-  int n = WiFi.scanNetworks();
+  int n = WiFi.scanNetworks(false, false, 1);
   Serial.println("Scan done");
 
 //   if (n == 0) {

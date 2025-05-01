@@ -9,7 +9,7 @@ int LDRpin = 2;
 int manualButtonpin = 1;
 int INT1Pin = 0;
 int RXPin = 20, TxPin = 21;
-int SDApin = 7, SCLpin = 6;
+int SDApin = 19, SCLpin = 18;
 
 // Global variables
 int8_t mode = 0;  // 0 = Active, 1 = Parked, 2 = Storage
@@ -44,8 +44,11 @@ uint64_t lastMoveTime = 0;
 // ---------------------
 unsigned long WifiTimer = 0;
 
-const char *myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
-const char *mypass = "HotSpot!36";         // your network password
+// const char *myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
+// const char *mypass = "HotSpot!36";         // your network password
+
+const char *myssid = "TP-Link_79DE";
+const char *mypass = "00895576";
 
 // Credentials for Google GeoLocation API...
 const char *Host = "www.googleapis.com";
@@ -191,8 +194,8 @@ void setup() {
   pinMode(manualButtonpin, INPUT);
   // pinMode(manualLEDpin, OUTPUT);
   pinMode(INT1Pin, INPUT);
-  pinMode(SCLpin, INPUT_PULLUP);
-  pinMode(SDApin, INPUT_PULLUP);
+  // pinMode(SCLpin, INPUT_PULLUP);
+  // pinMode(SDApin, INPUT_PULLUP);
   delay(1000);
 
   // initialize WIFI
@@ -203,40 +206,40 @@ void setup() {
   Wire.begin(SDApin, SCLpin);  // SDA, SCL
   Wire.setClock(100000);       // Set I2C clock speed to 100 kHz
 
-  // // Set up the battery tracker
-  // // batteryTracker.begin();
+  // Set up the battery tracker
+  //batteryTracker.begin();
 
-  // // Set up the accelerometer
-  // if (!accel.begin(0x53)) {
-  //   Serial.println("Failed to find ADXL343 chip");
-  // }
+  // Set up the accelerometer
+  if (!accel.begin(0x53)) {
+    Serial.println("Failed to find ADXL343 chip");
+  }
 
-  // delay(100);
-  // accel.setRange(ADXL343_RANGE_2_G);
-  // attachInterrupt(digitalPinToInterrupt(INT1Pin), int1_isr, RISING);
+  delay(100);
+  accel.setRange(ADXL343_RANGE_2_G);
+  attachInterrupt(digitalPinToInterrupt(INT1Pin), int1_isr, RISING);
 
-  // Wire.beginTransmission(0x53);
-  // Wire.write(0x31);  // Read data format register
-  // Wire.endTransmission();
-  // Wire.requestFrom(0x53, 1);
-  // uint8_t currenConfig = 0;
-  // if (Wire.available()) {
-  //   currenConfig = Wire.read();
-  // }
-  // currenConfig &= 0xDF;  // Set accelerometer to active low
+  Wire.beginTransmission(0x53);
+  Wire.write(0x31);  // Read data format register
+  Wire.endTransmission();
+  Wire.requestFrom(0x53, 1);
+  uint8_t currenConfig = 0;
+  if (Wire.available()) {
+    currenConfig = Wire.read();
+  }
+  currenConfig &= 0xDF;  // Set accelerometer to active low
 
-  // Wire.beginTransmission(0x53);
-  // Wire.write(0x31);  // Write data format register
-  // Wire.write(currenConfig);
-  // Wire.endTransmission();
+  Wire.beginTransmission(0x53);
+  Wire.write(0x31);  // Write data format register
+  Wire.write(currenConfig);
+  Wire.endTransmission();
 
-  // g_int_config_enabled.bits.single_tap = true;
-  // accel.enableInterrupts(g_int_config_enabled);
+  g_int_config_enabled.bits.single_tap = true;
+  accel.enableInterrupts(g_int_config_enabled);
 
-  // g_int_config_map.bits.single_tap = ADXL343_INT1;
-  // accel.mapInterrupts(g_int_config_map);
+  g_int_config_map.bits.single_tap = ADXL343_INT1;
+  accel.mapInterrupts(g_int_config_map);
 
-  // accel.checkInterrupts();
+  accel.checkInterrupts();
 
   // // Set up the GPS
   // gpsSerial.begin(GPSBaud, SERIAL_8N1, RXPin, TxPin);
@@ -257,7 +260,7 @@ void loop() {
 
   if (accFlag) {
     accFlag = false;
-    // accel.checkInterrupts();
+    accel.checkInterrupts();
   }
 
   switch (mode) {
@@ -281,7 +284,7 @@ void int1_isr(void) {
 }
 
 void active() {
-  // accel.checkInterrupts();
+  accel.checkInterrupts();
 
   // Reads battery status
   //float batteryPercent = batteryTracker.cellPercent();
@@ -321,7 +324,6 @@ void active() {
     return;
   }
 
-  // digitalWrite(manualLEDpin, buttonState);
   digitalWrite(LEDpin, LEDstate);
 
   GPSInterval = GPS_interval_active;  // 8 seconds
@@ -333,45 +335,36 @@ void active() {
   switch (deviceState) {
     case DEVICE_STATE_INIT:
       {
-        Serial.println("Start init");
         LoRaWAN.init(loraWanClass, loraWanRegion);
         // both set join DR and DR when ADR off
         LoRaWAN.setDefaultDR(3);
-        Serial.println("Slut init");
         break;
       }
     case DEVICE_STATE_JOIN:
       {
-        Serial.println("Start join");
         LoRaWAN.join();
-        Serial.println("Slut join");
         break;
       }
     case DEVICE_STATE_SEND:
       {
-        Serial.println("Start Send");
         prepareTxFrame(appPort, pos[0], pos[1]);
         LoRaWAN.send();
         deviceState = DEVICE_STATE_CYCLE;
         buffer = 0;
-        Serial.println("Slut send");
         break;
       }
     case DEVICE_STATE_CYCLE:
       {
-        Serial.println("Start cycle");
         // Schedule next packet transmission
         txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
         LoRaWAN.cycle(txDutyCycleTime);
 
         deviceState = DEVICE_STATE_SLEEP;
         buffer = 0;
-        Serial.println("Slut cycle");
         break;
       }
     case DEVICE_STATE_SLEEP:
       {
-        Serial.println("Start sleep");
         LoRaWAN.sleep(loraWanClass);
 
         if (data == 5) {
@@ -387,7 +380,6 @@ void active() {
           deviceState = DEVICE_STATE_SEND;
           last_time = millis();
         }
-        Serial.println("Slut sleep");
         break;
       }
     default:
@@ -399,8 +391,8 @@ void active() {
 }
 
 void park() {
-  // digitalWrite(manualLEDpin, LOW);
   digitalWrite(LEDpin, LOW);
+
   LEDstate = false;
   buttonState = false;
 
