@@ -13,6 +13,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+#include "tracking.h"
 
 // Constants
 #define GPS_interval_active 5 * 1000   // 5 seconds
@@ -23,7 +24,7 @@
 #define GPS_max_tries 5            // Max tries to get a fix
 #define WIFI_max_tries 5           // Max tries to get a fix
 
-#define swtich_to_park_time 20 * 1000 // 20 seconds
+#define swtich_to_park_time 2000 * 1000 // 20 seconds
 #define swtich_to_storage_time 20 * 1000 // 20 seconds
 
 #define sleep_time_active 1 * 100000   // 1 second
