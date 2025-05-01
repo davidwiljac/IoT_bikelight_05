@@ -16,7 +16,7 @@
 #include "tracking.h"
 
 // Constants
-#define GPS_interval_active 8 * 1000   // 5 seconds
+#define GPS_interval_active 30 * 1000   // 30 seconds
 #define GPS_interval_parked 120 * 1000 // 2 minutes
 #define GPS_interval_storage 30 * 1000 // 30 seconds
 #define GPS_interval_timeout 60 * 1000 // 1 minute
@@ -24,7 +24,7 @@
 #define GPS_max_tries 5            // Max tries to get a fix
 #define WIFI_max_tries 5           // Max tries to get a fix
 
-#define swtich_to_park_time 10 * 1000 // 20 seconds
+#define swtich_to_park_time 60 * 1000 // 60 seconds
 #define swtich_to_storage_time 20000 * 1000 // 20 seconds
 
 #define sleep_time_active 1 * 100000   // 1 second
