@@ -4,12 +4,12 @@
 #include "button.h"
 
 // Pins
-int LEDpin = 9;
 int LDRpin = 2;
-int manualButtonpin = 1;
+int manualButtonpin = 3;
 int INT1Pin = 0;
-int RXPin = 20, TxPin = 21;
+int RxPin = 1, TxPin = 1000;
 int SDApin = 19, SCLpin = 18;
+int LEDSer = 8, LEDClk = 9;
 
 // Global variables
 int8_t mode = 0;  // 0 = Active, 1 = Parked, 2 = Storage
@@ -19,12 +19,12 @@ Adafruit_ADXL343 accel = Adafruit_ADXL343(12345);
 
 uint32_t GPSBaud = 9600;
 TinyGPSPlus gps;
-HardwareSerial gpsSerial(2);
+SoftwareSerial gpsSerial(RxPin, TxPin);
+//HardwareSerial gpsSerial(0);
 
 bool buttonState = false;
+bool showBattery = false;
 
-uint64_t lastOnTime = 0;
-uint64_t lastGPSTime = 0;
 uint64_t GPSInterval = 1000;  // 1 second
 bool LEDstate = false;
 bool lowLight = false;
@@ -35,20 +35,24 @@ int_config g_int_config_map = { 0 };
 static volatile bool accFlag = false;
 
 float *pos = new float[2];  // Array to store the position
+int8_t batteryPercent;
+int8_t dischargeRate;
 
-// pos[0] = 0;
-// pos[1] = 0;
 // Timer variables
 uint64_t lastMoveTime = 0;
-
+uint64_t lastOnTime = 0;
+uint64_t lastGPSTime = 0;
+uint64_t batteryIndicatorTime = 0;
 // ---------------------
-unsigned long WifiTimer = 0;
 
 // const char *myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
 // const char *mypass = "HotSpot!36";         // your network password
 
-const char *myssid = "TP-Link_79DE";
-const char *mypass = "00895576";
+// const char *myssid = "TP-Link_79DE";
+// const char *mypass = "00895576";
+
+const char *myssid = "Galaxy S20+ 5G ecb1";
+const char *mypass = "KES12345";
 
 // Credentials for Google GeoLocation API...
 const char *Host = "www.googleapis.com";
@@ -57,9 +61,6 @@ String key = "AIzaSyDo9og6Y61VADw3M3yrXWketfSZeoTMQTE";
 
 String jsonString = "{\n";
 
-float latitude = 0.0;
-float longitude = 0.0;
-float accuracy = 0.0;
 int more_text = 1;  // set to 1 for more debug output
 
 /* OTAA para*/
@@ -79,7 +80,7 @@ uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 
 LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 
 /*LoraWan Class, Class A and Class C are supported*/
-DeviceClass_t loraWanClass = CLASS_C;
+DeviceClass_t loraWanClass = CLASS_A;
 
 /*the application data transmission duty cycle.  value in [ms].*/
 uint32_t appTxDutyCycle = 10000;
@@ -138,10 +139,19 @@ static void prepareTxFrame(uint8_t port, float lat, float lon) {
   unsigned char *puc;
 
   appDataSize = 0;
-  appData[appDataSize++] = 0x00;
-  appData[appDataSize++] = 0x01;
-  appData[appDataSize++] = 0x02;
-  appData[appDataSize++] = 0x04;
+  puc = (unsigned char *)(&LEDstate);
+  appData[appDataSize++] = puc[0];
+
+  puc = (unsigned char *)(&mode);
+  appData[appDataSize++] = puc[0];
+
+  Serial.println("Percent:" + String(batteryPercent) + "%");
+  puc = (unsigned char *)(&batteryPercent);
+  appData[appDataSize++] = puc[0];
+
+  Serial.println("Discharge rate:" + String(dischargeRate) + "%/h");
+  puc = (unsigned char *)(&dischargeRate);
+  appData[appDataSize++] = puc[0];
 
   puc = (unsigned char *)(&lat);
   appData[appDataSize++] = puc[0];
@@ -174,44 +184,39 @@ void downLinkDataHandle(McpsIndication_t *mcpsIndication) {
   }
   Serial.print("stored data: ");
   Serial.println(data);
-
-  if (data == 5) {
-    digitalWrite(LEDpin, HIGH);
-  } else if (data == 6) {
-    digitalWrite(LEDpin, LOW);
-  }
 }
 
 void setup() {
   Serial.begin(115200);
-  // delay(3000);
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
-  // delay(3000);
   Serial.println("Setup begin");
+
   // Set up the pins
-  pinMode(LEDpin, OUTPUT);
   pinMode(LDRpin, INPUT);
   pinMode(manualButtonpin, INPUT);
-  // pinMode(manualLEDpin, OUTPUT);
   pinMode(INT1Pin, INPUT);
-  // pinMode(SCLpin, INPUT_PULLUP);
-  // pinMode(SDApin, INPUT_PULLUP);
+  pinMode(SCLpin, INPUT_PULLUP);
+  pinMode(SDApin, INPUT_PULLUP);
+  pinMode(LEDSer, OUTPUT);
+  pinMode(LEDClk, OUTPUT);
   delay(1000);
 
   // initialize WIFI
   initWiFi();
-  // googlemaps();
-  // WIFI_scanning(pos);
 
   Wire.begin(SDApin, SCLpin);  // SDA, SCL
   Wire.setClock(100000);       // Set I2C clock speed to 100 kHz
 
   // Set up the battery tracker
-  //batteryTracker.begin();
+  while (!batteryTracker.begin()) {
+  }
+  Serial.println("Found battery tracker!");
 
   // Set up the accelerometer
   if (!accel.begin(0x53)) {
     Serial.println("Failed to find ADXL343 chip");
+  } else {
+    Serial.println("Found ADXL343 chip!");
   }
 
   delay(100);
@@ -242,17 +247,20 @@ void setup() {
   accel.checkInterrupts();
 
   // // Set up the GPS
-  // gpsSerial.begin(GPSBaud, SERIAL_8N1, RXPin, TxPin);
+  gpsSerial.begin(GPSBaud);
 
-  // // esp_sleep_enable_ext1_wakeup((1ULL << INT1Pin) | (1ULL << manualButtonpin), ESP_EXT1_WAKEUP_ANY_HIGH); // fra davids kode
-  // esp_deep_sleep_enable_gpio_wakeup((1ULL << INT1Pin) | (1ULL << manualButtonpin), ESP_GPIO_WAKEUP_GPIO_LOW);  // fra LoRaWANInterrupt example
-  // esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
-  // switch (wakeupReason) {
-  //   case ESP_SLEEP_WAKEUP_TIMER:
-  //     Serial.println("Woke up from timer sleep");
-  //     mode = 2;
-  //     break;
-  // }
+  esp_deep_sleep_enable_gpio_wakeup((1ULL << INT1Pin) | (1ULL << manualButtonpin), ESP_GPIO_WAKEUP_GPIO_LOW);  // fra LoRaWANInterrupt example
+  esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
+  switch (wakeupReason) {
+    case ESP_SLEEP_WAKEUP_TIMER:
+      Serial.println("Woke up from timer sleep");
+      mode = 2;
+      break;
+    case ESP_SLEEP_WAKEUP_GPIO:
+      Serial.println("Woke up from light sleep");
+      mode = 1;
+      break;
+  }
   Serial.println("Setup complete!");
 }
 
@@ -261,6 +269,66 @@ void loop() {
   if (accFlag) {
     accFlag = false;
     accel.checkInterrupts();
+  }
+
+  while (gpsSerial.available()) {
+    gps.encode(gpsSerial.read());
+  }
+
+  switch (deviceState) {
+    case DEVICE_STATE_INIT:
+      {
+        LoRaWAN.init(loraWanClass, loraWanRegion);
+        // both set join DR and DR when ADR off
+        LoRaWAN.setDefaultDR(3);
+        break;
+      }
+    case DEVICE_STATE_JOIN:
+      {
+        LoRaWAN.join();
+        break;
+      }
+    case DEVICE_STATE_SEND:
+      {
+        digitalWrite(LEDSer, 1);  //Enable LORA¨
+        delay(100);
+        prepareTxFrame(appPort, pos[0], pos[1]);
+        LoRaWAN.send();
+        deviceState = DEVICE_STATE_CYCLE;
+        buffer = 0;
+        break;
+      }
+    case DEVICE_STATE_CYCLE:
+      {
+        // Schedule next packet transmission
+        txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
+        LoRaWAN.cycle(txDutyCycleTime);
+
+        deviceState = DEVICE_STATE_SLEEP;
+        buffer = 0;
+        break;
+      }
+    case DEVICE_STATE_SLEEP:
+      {
+        //LoRaWAN.sleep(loraWanClass);
+        Mcu.timerhandler();
+        Radio.IrqProcess();
+
+        if (buffer == 0) {
+          buffer = 1;
+        }
+
+        // if ((millis() - last_time) > txDutyCycleTime) {
+        //   deviceState = DEVICE_STATE_SEND;
+        //   last_time = millis();
+        // }
+        break;
+      }
+    default:
+      {
+        deviceState = DEVICE_STATE_INIT;
+        break;
+      }
   }
 
   switch (mode) {
@@ -283,12 +351,13 @@ void int1_isr(void) {
   accFlag = true;
 }
 
+uint64_t pritntTime = 0;
 void active() {
   accel.checkInterrupts();
 
   // Reads battery status
-  //float batteryPercent = batteryTracker.cellPercent();
-  //float dischargeRate = batteryTracker.chargeRate();
+  batteryPercent = int(batteryTracker.cellPercent());
+  dischargeRate = int(batteryTracker.chargeRate());
 
   // Read the light sensor
   int light = analogRead(LDRpin);
@@ -296,7 +365,32 @@ void active() {
   // Read the button and store the state in a list
   bool state = digitalRead(manualButtonpin);
   updateButtonStateList(state);
-  buttonState = toggleButtonState(buttonState);
+
+  uint8_t clickMode = readClickMode();
+  if (clickMode == 1) {
+    buttonState = !buttonState;
+  } else if (clickMode == 2) {
+    // Turn on battery indicator
+    showBattery = true;
+    batteryIndicatorTime = millis();
+    setLED(batteryPercent, showBattery, LEDstate);
+  } else if (clickMode == 3) {
+    mode = 1;
+    GPSInterval = GPS_interval_parked;
+    lastMoveTime = millis();               // Reset the last move time
+    lastGPSTime = millis() - GPSInterval;  // Force GPS to update
+
+    LEDstate = false;
+    buttonState = false;
+    setLED(batteryPercent, showBattery, LEDstate);
+    Serial.println("Switching to park mode due to manual turn off.");
+    return;
+  }
+
+  if (showBattery && millis() - batteryIndicatorTime > 5000) {
+    showBattery = false;
+    setLED(batteryPercent, showBattery, LEDstate);
+  }
   if (light < 1000) {
     if (!lowLight) {
       Serial.println("Low light detected!");
@@ -310,102 +404,49 @@ void active() {
 
 
   if (buttonState || ((millis() - lastOnTime > 5000) && lowLight)) {
+    if (!LEDstate) {
+      setLED(batteryPercent, showBattery, true);
+    }
     LEDstate = true;
   } else {
+    if (LEDstate) {
+      setLED(batteryPercent, showBattery, false);
+    }
     LEDstate = false;
   }
+
 
   if (millis() - lastMoveTime > swtich_to_park_time) {  // 120000
     mode = 1;
     GPSInterval = GPS_interval_parked;
     lastMoveTime = millis();               // Reset the last move time
     lastGPSTime = millis() - GPSInterval;  // Force GPS to update
+
+    LEDstate = false;
+    buttonState = false;
+    setLED(batteryPercent, false, LEDstate);
     Serial.println("Switching to park mode due to inactivity.");
     return;
   }
 
-  digitalWrite(LEDpin, LEDstate);
-
-  GPSInterval = GPS_interval_active;  // 8 seconds
-  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
   // Scans location every  minutes
+  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 
   // modem_sleep(sleep_time_active); // Sleep for 1 second
-
-  switch (deviceState) {
-    case DEVICE_STATE_INIT:
-      {
-        LoRaWAN.init(loraWanClass, loraWanRegion);
-        // both set join DR and DR when ADR off
-        LoRaWAN.setDefaultDR(3);
-        break;
-      }
-    case DEVICE_STATE_JOIN:
-      {
-        LoRaWAN.join();
-        break;
-      }
-    case DEVICE_STATE_SEND:
-      {
-        prepareTxFrame(appPort, pos[0], pos[1]);
-        LoRaWAN.send();
-        deviceState = DEVICE_STATE_CYCLE;
-        buffer = 0;
-        break;
-      }
-    case DEVICE_STATE_CYCLE:
-      {
-        // Schedule next packet transmission
-        txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
-        LoRaWAN.cycle(txDutyCycleTime);
-
-        deviceState = DEVICE_STATE_SLEEP;
-        buffer = 0;
-        break;
-      }
-    case DEVICE_STATE_SLEEP:
-      {
-        LoRaWAN.sleep(loraWanClass);
-
-        if (data == 5) {
-          digitalWrite(LEDpin, HIGH);
-        } else if (data == 6) {
-          digitalWrite(LEDpin, LOW);
-        }
-        if (buffer == 0) {
-          buffer = 1;
-        }
-
-        if ((millis() - last_time) > txDutyCycleTime) {
-          deviceState = DEVICE_STATE_SEND;
-          last_time = millis();
-        }
-        break;
-      }
-    default:
-      {
-        deviceState = DEVICE_STATE_INIT;
-        break;
-      }
-  }
 }
 
 void park() {
-  digitalWrite(LEDpin, LOW);
-
-  LEDstate = false;
-  buttonState = false;
-
   if (accFlag) {
     accFlag = false;
     mode = 0;
     accel.checkInterrupts();
+    GPSInterval = GPS_interval_active;
     Serial.println("Going back to active mode!");
   }
 
   if (millis() - lastMoveTime > swtich_to_storage_time) {
     mode = 2;                              // Switch to storage mode after 5 minutes of inactivity
-    GPSInterval = GPS_interval_parked;     // 30 seconds
+    GPSInterval = GPS_interval_storage;    // 30 seconds
     lastMoveTime = millis();               // Reset the last move time
     lastGPSTime = millis() - GPSInterval;  // Force GPS to update
     Serial.println("Switching to storage mode due to inactivity.");

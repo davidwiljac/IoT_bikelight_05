@@ -4,8 +4,9 @@
 uint8_t GPSTries = 0;
 uint8_t WIFITries = 0;
 
-void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, HardwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos, int8_t mode) {
+void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, SoftwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos, int8_t mode) {
   if (millis() - *lastGPSTime >= *GPSInterval) {
+    deviceState = DEVICE_STATE_SEND;
     *lastGPSTime = millis();
     if (WIFITries < WIFI_max_tries) {
       WIFI_scanning(pos);
@@ -24,7 +25,7 @@ void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, HardwareSerial *gpsSer
       GNSS(gpsSerial, gps, pos);
       if (pos[0] == 0.0 && pos[1] == 0.0) {  // If fix is not achived try again in 5 seconds
         Serial.println("No GPS fix, trying again in 5 seconds.");
-        *GPSInterval = GPS_interval_active;  // 5 seconds
+        *GPSInterval = GPS_interval_retry;  // 5 seconds
         GPSTries++;
         if (GPSTries >= GPS_max_tries) {
           Serial.println("Max tries reached, going to sleep.");
@@ -44,19 +45,21 @@ void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, HardwareSerial *gpsSer
   }
 }
 
-bool GNSS(HardwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos) {
+bool GNSS(SoftwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos) {
+  Serial.println("Get GPS fix");
   unsigned long start = millis();
   while (gpsSerial->available()) {
     gps->encode(gpsSerial->read());
   }
-
   if (gps->location.isValid()) {
+    Serial.println("GPS success");
     float lat = gps->location.lat();
     float lon = gps->location.lng();
     pos[0] = lat;
     pos[1] = lon;
     return true;
   } else {
+    Serial.println("GPS fail");
     pos[0] = 0.0;
     pos[1] = 0.0;
     return false;
@@ -64,7 +67,6 @@ bool GNSS(HardwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos) {
 }
 
 bool WIFI_scanning(float *pos) {
-
   pos[0] = 0.0;
   pos[1] = 0.0;
   // Create a DynamicJsonDocument for parsing the response
@@ -74,38 +76,38 @@ bool WIFI_scanning(float *pos) {
   int n = WiFi.scanNetworks(false, false, 1);
   Serial.println("Scan done");
 
-//   if (n == 0) {
-//     Serial.println("No networks found");
-//   } else {
-//     Serial.print(n);
-//     Serial.println(" networks found...");
+  //   if (n == 0) {
+  //     Serial.println("No networks found");
+  //   } else {
+  //     Serial.print(n);
+  //     Serial.println(" networks found...");
 
-//     if (more_text) {
-//       // Output formatted JSON to Serial for debugging
-//       Serial.println("{");
-//       Serial.println("\"homeMobileCountryCode\": 234,");
-//       Serial.println("\"homeMobileNetworkCode\": 27,");
-//       Serial.println("\"radioType\": \"gsm\",");
-//       Serial.println("\"carrier\": \"Vodafone\",");
-//       Serial.println("\"wifiAccessPoints\": [");
-//       for (int i = 0; i < n; ++i) {
-//         Serial.println("{");
-//         Serial.print("\"macAddress\" : \"");
-//         Serial.print(WiFi.BSSIDstr(i));
-//         Serial.println("\",");
-//         Serial.print("\"signalStrength\": ");
-//         Serial.println(WiFi.RSSI(i));
-//         if (i < n - 1) {
-//           Serial.println("},");
-//         } else {
-//           Serial.println("}");
-//         }
-//       }
-//       Serial.println("]");
-//       Serial.println("}");
-//     }
-//     Serial.println();
-//   }
+  //     if (more_text) {
+  //       // Output formatted JSON to Serial for debugging
+  //       Serial.println("{");
+  //       Serial.println("\"homeMobileCountryCode\": 234,");
+  //       Serial.println("\"homeMobileNetworkCode\": 27,");
+  //       Serial.println("\"radioType\": \"gsm\",");
+  //       Serial.println("\"carrier\": \"Vodafone\",");
+  //       Serial.println("\"wifiAccessPoints\": [");
+  //       for (int i = 0; i < n; ++i) {
+  //         Serial.println("{");
+  //         Serial.print("\"macAddress\" : \"");
+  //         Serial.print(WiFi.BSSIDstr(i));
+  //         Serial.println("\",");
+  //         Serial.print("\"signalStrength\": ");
+  //         Serial.println(WiFi.RSSI(i));
+  //         if (i < n - 1) {
+  //           Serial.println("},");
+  //         } else {
+  //           Serial.println("}");
+  //         }
+  //       }
+  //       Serial.println("]");
+  //       Serial.println("}");
+  //     }
+  //     Serial.println();
+  //   }
 
   // Build the JSON string for the API request
   jsonString = "{\n";
@@ -131,15 +133,15 @@ bool WIFI_scanning(float *pos) {
   jsonString += "]\n";
   jsonString += "}\n";
 
-//   Serial.println("");
+  //   Serial.println("");
 
   // Needs actual root ca
   WiFiClientSecure client;
   client.setInsecure();  // Disable certificate verification (use with caution)
 
-//   Serial.print("Requesting URL: ");
-//   Serial.println("https://" + String(Host) + thisPage + key);
-//   Serial.println("");
+  //   Serial.print("Requesting URL: ");
+  //   Serial.println("https://" + String(Host) + thisPage + key);
+  //   Serial.println("");
 
   if (client.connect(Host, 443)) {
     Serial.println("Connected");
@@ -159,24 +161,19 @@ bool WIFI_scanning(float *pos) {
   while (client.available()) {
     String line = client.readStringUntil('\r');
     if (more_text) {
-    //   Serial.print(line);
+      //   Serial.print(line);
     }
     DeserializationError error = deserializeJson(jsonBuffer, line);
     if (!error) {
       if (jsonBuffer.containsKey("location")) {
-        float latitude = jsonBuffer["location"]["lat"];
-        float longitude = jsonBuffer["location"]["lng"];
-        pos[0] = latitude;
-        pos[1] = longitude;
-      }
-      if (jsonBuffer.containsKey("accuracy")) {
-        accuracy = jsonBuffer["accuracy"];
+        pos[0] = jsonBuffer["location"]["lat"];
+        pos[1] = jsonBuffer["location"]["lng"];
       }
     }
   }
 
-//   Serial.println("Closing connection");
-//   Serial.println();
+  //   Serial.println("Closing connection");
+  //   Serial.println();
   client.stop();
 
   return true;

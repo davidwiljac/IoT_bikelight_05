@@ -1,4 +1,5 @@
 //#include <TinyGPSPlus.h>
 #include "HT_TinyGPS++.h"
-bool GNSS(HardwareSerial* gpsSerial, TinyGPSPlus* gps, float* pos);
+void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, SoftwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos, int8_t mode);
+bool GNSS(SoftwareSerial* gpsSerial, TinyGPSPlus* gps, float* pos);
 bool WIFI_scanning(float* pos);
