@@ -45,14 +45,14 @@ uint64_t lastGPSTime = 0;
 uint64_t batteryIndicatorTime = 0;
 // ---------------------
 
-// const char *myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
-// const char *mypass = "HotSpot!36";         // your network password
+const char *myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
+const char *mypass = "HotSpot!36";         // your network password
 
 // const char *myssid = "TP-Link_79DE";
 // const char *mypass = "00895576";
 
-const char *myssid = "Galaxy S20+ 5G ecb1";
-const char *mypass = "KES12345";
+// const char *myssid = "Galaxy S20+ 5G ecb1";
+// const char *mypass = "KES12345";
 
 // Credentials for Google GeoLocation API...
 const char *Host = "www.googleapis.com";
@@ -164,6 +164,22 @@ static void prepareTxFrame(uint8_t port, float lat, float lon) {
   appData[appDataSize++] = puc[1];
   appData[appDataSize++] = puc[2];
   appData[appDataSize++] = puc[3];
+
+  uint16_t gps_active = GPS_interval_active / 1000 / 60;
+  puc = (unsigned char *)(&gps_active);
+  appData[appDataSize++] = puc[0];
+  appData[appDataSize++] = puc[1];
+
+  uint16_t gps_parked = GPS_interval_parked / 1000 / 60 / 60;
+  puc = (unsigned char *)(&gps_parked);
+  appData[appDataSize++] = puc[0];
+  appData[appDataSize++] = puc[1];
+
+  uint16_t switchPark = switch_to_park_time / 1000 / 10;
+  puc = (unsigned char *)(&switchPark);
+  appData[appDataSize++] = puc[0];
+  appData[appDataSize++] = puc[1];
+  
 }
 
 // downlink data handle function example
@@ -172,18 +188,32 @@ void downLinkDataHandle(McpsIndication_t *mcpsIndication) {
   Serial.print("+REV DATA:");
   for (uint8_t i = 0; i < mcpsIndication->BufferSize; i++) {
     DataReceived[i] = mcpsIndication->Buffer[i];
-    received_data = mcpsIndication->Buffer[i];
+    data = mcpsIndication->Buffer[i];
     Serial.print("received data: ");
-    Serial.println(received_data);
+    Serial.println(DataReceived[i]);
+    Serial.println();
     Serial.printf("%02X", mcpsIndication->Buffer[i]);
+
+    if ((data & 0b00111111) > 0) {
+      if (((data & 0b11000000) >> 6) == 1) {
+        GPS_interval_active = (data & 0b00111111) * 1000 * 60;  // minutes
+      } else if (((data & 0b11000000) >> 6) == 2) {
+        GPS_interval_parked = (data & 0b00111111) * 1000 * 60 * 60;  // hours
+      } else if (((data & 0b11000000) >> 6) == 3) {
+        switch_to_park_time = (data & 0b00111111) * 1000 * 10;  // 10s
+      }
+    }
+    Serial.println(GPS_interval_active / 1000 / 60);
+    Serial.println(GPS_interval_parked / 1000 / 60 / 60);
+    Serial.println(switch_to_park_time / 1000 / 10);
   }
   Serial.println();
 
-  if (received_data != 0) {
-    data = received_data;
-  }
-  Serial.print("stored data: ");
-  Serial.println(data);
+  // if (received_data != 0) {
+  //   data = received_data;
+  // }
+  // Serial.print("stored data: ");
+  // Serial.println(data);
 }
 
 void setup() {
@@ -250,6 +280,11 @@ void setup() {
   accel.checkInterrupts();
 
   // // Set up the GPS
+
+  GPS_interval_active = 30 * 1000;   // 30 seconds
+  GPS_interval_parked = 120 * 1000;  // 2 minutes
+  switch_to_park_time = 15 * 1000;   // 60 seconds
+
   gpsSerial.begin(GPSBaud);
 
   esp_deep_sleep_enable_gpio_wakeup((1ULL << INT1Pin) | (1ULL << manualButtonpin), ESP_GPIO_WAKEUP_GPIO_LOW);  // fra LoRaWANInterrupt example
@@ -419,7 +454,7 @@ void active() {
   }
 
 
-  if (millis() - lastMoveTime > swtich_to_park_time) {  // 120000
+  if (millis() - lastMoveTime > switch_to_park_time) {  // 120000
     mode = 1;
     GPSInterval = GPS_interval_parked;
     lastMoveTime = millis();               // Reset the last move time
@@ -447,7 +482,7 @@ void park() {
     Serial.println("Going back to active mode!");
   }
 
-  if (millis() - lastMoveTime > swtich_to_storage_time) {
+  if (millis() - lastMoveTime > switch_to_storage_time) {
     mode = 2;                              // Switch to storage mode after 5 minutes of inactivity
     GPSInterval = GPS_interval_storage;    // 30 seconds
     lastMoveTime = millis();               // Reset the last move time

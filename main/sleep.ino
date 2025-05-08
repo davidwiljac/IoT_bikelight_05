@@ -1,5 +1,4 @@
 #include "sleep.h"
-#include "main.h"
 void modem_sleep(int32_t time_millis) {
   WiFi.setSleep(true);
   btStop();
