@@ -208,9 +208,12 @@ void setup() {
   Wire.setClock(100000);       // Set I2C clock speed to 100 kHz
 
   // Set up the battery tracker
-  while (!batteryTracker.begin()) {
+  if (!batteryTracker.begin()) {
+    Serial.println("Failed to find battery tracker!");
+
+  } else {
+    Serial.println("Found battery tracker!");
   }
-  Serial.println("Found battery tracker!");
 
   // Set up the accelerometer
   if (!accel.begin(0x53)) {
@@ -430,7 +433,7 @@ void active() {
   }
 
   // Scans location every  minutes
-  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
+  //getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 
   // modem_sleep(sleep_time_active); // Sleep for 1 second
 }
