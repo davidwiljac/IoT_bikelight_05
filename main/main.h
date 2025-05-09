@@ -12,7 +12,11 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+
+#include "sleep.h"
+#include "button.h"
 #include "tracking.h"
+#include "LoRa.h"
 
 // Constants
 uint64_t GPS_interval_active;
