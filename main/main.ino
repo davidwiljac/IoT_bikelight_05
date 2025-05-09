@@ -201,6 +201,9 @@ void setup() {
   pinMode(LEDClk, OUTPUT);
   delay(1000);
 
+  // Reset LED
+  setLED(0, true, false);
+
   // initialize WIFI
   initWiFi();
 
