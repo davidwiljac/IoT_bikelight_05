@@ -64,10 +64,6 @@ uint8_t readClickMode() {
     clickRelease = true;
     clickReleaseTime = millis();
   }
-  // Serial.println("Init: " + String(clickInit));
-  // Serial.println("Init time: " + String(millis() - clickInitTime));
-  // Serial.println("Release: " + String(clickRelease));
-  // Serial.println("Release time: " + String(millis() - clickReleaseTime));
 
   if (clickInit && !clickRelease && buttonRead && millis() - clickInitTime > 2000) {
     Serial.println("Hold");
@@ -98,7 +94,8 @@ void setLED(int8_t batteryPercent, bool showBattery, bool LEDstate) {
   LEDArray[6] = false;
   LEDArray[7] = false;
 
-  uint8_t level = ceil(batteryPercent / 20);
+  float leveldec = batteryPercent / 20.0;
+  uint8_t level = ceil(leveldec);
   if (!showBattery) {
     level = 0;
   }
@@ -110,7 +107,9 @@ void setLED(int8_t batteryPercent, bool showBattery, bool LEDstate) {
       LEDArray[i] = false;
     }
   }
-
+  digitalWrite(LEDSer, LOW);
+  digitalWrite(LEDClk, LOW);
+  delay(3);
   for (int i = 7; i >= 0; i--) {
     digitalWrite(LEDSer, LEDArray[i]);
     delay(3);

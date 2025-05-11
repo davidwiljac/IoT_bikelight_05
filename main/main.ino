@@ -10,7 +10,7 @@
 #define SCLpin 18
 #define LEDSer 8
 #define LEDClk 9
-#define hardwareTx 21
+#define storageSwitch 20
 
 // Global variables
 int8_t mode = 0;  // 0 = Active, 1 = Parked, 2 = Storage
@@ -111,27 +111,27 @@ uint8_t data = 1;
 uint8_t DataReceived[4];
 
 void setup() {
-  Serial.begin(115200, SERIAL_8N1, 1000, 21);  // Example: use GPIO9 (RX), GPIO10 (TX)
+  Serial.end();
+  Serial.begin(115200, SERIAL_8N1, -1, 21);  // Example: use GPIO9 (RX), GPIO10 (TX)
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
   Serial.println("Setup begin");
 
   // Set up the pins
   pinMode(LDRpin, INPUT);
-  pinMode(manualButtonpin, INPUT);
-  pinMode(INT1Pin, INPUT);
+  pinMode(manualButtonpin, INPUT_PULLDOWN);
+  pinMode(INT1Pin, INPUT_PULLDOWN);
   pinMode(SCLpin, INPUT_PULLUP);
   pinMode(SDApin, INPUT_PULLUP);
   pinMode(LEDSer, OUTPUT);
   pinMode(LEDClk, OUTPUT);
-  //pinMode(hardwareTx, OUTPUT_OPEN_DRAIN); // Remove in final product to enable power off
-  delay(1000);
+  pinMode(storageSwitch, INPUT);
 
   // Reset LED
-  setLED(0, true, false);
-  digitalWrite(hardwareTx, HIGH);
+  setLED(0, false, false);
+  pinMode(2, OUTPUT);
 
   // initialize WIFI
-  initWiFi();
+  //initWiFi();
 
   Wire.begin(SDApin, SCLpin);  // SDA, SCL
   Wire.setClock(100000);       // Set I2C clock speed to 100 kHz
@@ -147,6 +147,29 @@ void setup() {
   if (millis() - findSensorTime < 5000) {
     Serial.println("Found battery tracker");
   }
+  // Read the current mode of the batterytracker
+  Wire.beginTransmission(0x36);
+  Wire.write(0x06);  // Read data format register
+  Wire.endTransmission();
+  Wire.requestFrom(0x36, 1);
+  uint8_t currentMode = 0;
+  if (Wire.available()) {
+    currentMode = Wire.read();
+  }
+
+  // Write a 1 to the ENSLEEP bit to enable sleep mode for future use and send it https://www.analog.com/media/en/technical-documentation/data-sheets/max17048-max17049.pdf page 11
+  currentMode &= B00100000;
+  Wire.beginTransmission(0x36);
+  Wire.write(0x06);  // Write data format register
+  Wire.write(currentMode);
+  Wire.endTransmission();
+
+  // Ensures the batterytracker is in standard mode. Same place as previous block.
+  uint8_t defaultBatteryConfig = 0x1C;
+  Wire.beginTransmission(0x36);
+  Wire.write(0x06);
+  Wire.write(defaultBatteryConfig);
+  Wire.endTransmission();
 
   // Set up the accelerometer
   findSensorTime = millis();
@@ -172,13 +195,26 @@ void setup() {
   if (Wire.available()) {
     currenConfig = Wire.read();
   }
-  // Set accelerometer to active low. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 27
+  // Set accelerometer to active high. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 27
   currenConfig &= 0xDF;
 
   Wire.beginTransmission(0x53);
   Wire.write(0x31);  // Write data format register
   Wire.write(currenConfig);
   Wire.endTransmission();
+
+  // Set tap sensitivity to 2g. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 24
+  Wire.beginTransmission(0x53);
+  Wire.write(0x1D);
+  Wire.write(32);
+  Wire.endTransmission();
+
+  // Set to low power mode. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 25
+  Wire.beginTransmission(0x53);
+  Wire.write(0x2C);
+  Wire.write(0x17);  // Low power bit and 0111 (6.25Hz) for bandwith
+  Wire.endTransmission();
+
 
   // Set the INT1 pin to fire on a single tap
   g_int_config_enabled.bits.single_tap = true;
@@ -191,19 +227,33 @@ void setup() {
 
 
   // Set up the GPS
-  GPS_interval_active = 30 * 1000;   // 30 seconds
-  GPS_interval_parked = 120 * 1000;  // 2 minutes
-  switch_to_park_time = 15 * 1000;   // 60 seconds
+  GPS_interval_active = 30 * 1000;    // 30 seconds
+  GPS_interval_parked = 30 * 1000;    // 2 minutes
+  switch_to_park_time = 1000 * 1000;  // 60 seconds
+  GPSInterval = GPS_interval_active;
 
   gpsSerial.begin(GPSBaud);
 
   // Enable wakeups from button and acc intterupt
-  esp_deep_sleep_enable_gpio_wakeup((1ULL << INT1Pin) | (1ULL << manualButtonpin), ESP_GPIO_WAKEUP_GPIO_LOW);  // fra LoRaWANInterrupt example
+  uint64_t mask = 0;
+  mask |= (1ULL << INT1Pin);
+  mask |= (1ULL << manualButtonpin);
+  esp_deep_sleep_enable_gpio_wakeup(mask, ESP_GPIO_WAKEUP_GPIO_HIGH);  // fra LoRaWANInterrupt example
+
   esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
-  switch (wakeupReason) {
+  Serial.println("reason: " + wakeupReason);
+  switch (esp_sleep_get_wakeup_cause()) {
     case ESP_SLEEP_WAKEUP_GPIO:
-      Serial.println("Woke up from light sleep");
-      mode = 1;
+      printf("Wakeup caused by GPIO\n");
+      break;
+    case ESP_SLEEP_WAKEUP_TIMER:
+      printf("Wakeup caused by timer\n");
+      break;
+    case ESP_SLEEP_WAKEUP_UNDEFINED:
+      printf("Wakeup cause: undefined\n");
+      break;
+    default:
+      printf("Other wakeup cause\n");
       break;
   }
 
@@ -211,6 +261,11 @@ void setup() {
 }
 
 void loop() {
+  bool storageEnable = !digitalRead(storageSwitch);
+  if (storageEnable && mode != 2) {
+    mode = 2;
+    Serial.println("Switching to storage mode!");
+  }
   //Checks the LoRa state and acts accordingly
   LoRaLoop();
 
@@ -268,6 +323,7 @@ void active() {
 
     LEDstate = false;
     buttonState = false;
+    accFlag = false;
     setLED(batteryPercent, showBattery, LEDstate);
     Serial.println("Switching to park mode due to manual turn off.");
     return;
@@ -311,13 +367,14 @@ void active() {
 
     LEDstate = false;
     buttonState = false;
+    accFlag = false;
     setLED(batteryPercent, false, LEDstate);
     Serial.println("Switching to park mode due to inactivity.");
     return;
   }
 
   // Scans location if appropriate time has passed
-  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
+  //getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
 void park() {
@@ -329,18 +386,19 @@ void park() {
     Serial.println("Going back to active mode!");
   }
 
-  if (millis() - lastMoveTime > switch_to_storage_time) {
-    mode = 2;  // Switch to storage mode after a period of inactivity
-    GPSInterval = GPS_interval_storage;
-    lastMoveTime = millis();               // Reset the last move time
-    lastGPSTime = millis() - GPSInterval;  // Force GPS to update
-    Serial.println("Switching to storage mode due to inactivity.");
-    return;
-  }
+  // if (millis() - lastMoveTime > switch_to_storage_time) {
+  //   mode = 2;  // Switch to storage mode after a period of inactivity
+  //   GPSInterval = GPS_interval_storage;
+  //   lastMoveTime = millis();               // Reset the last move time
+  //   lastGPSTime = millis() - GPSInterval;  // Force GPS to update
+  //   Serial.println("Switching to storage mode due to inactivity.");
+  //   return;
+  // }
   getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
 void storage() {
+  esp_sleep(mode, &GPSInterval);
   getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 

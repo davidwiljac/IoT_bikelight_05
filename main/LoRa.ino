@@ -11,11 +11,9 @@ static void prepareTxFrame(uint8_t port, bool LEDstate, int8_t mode, int8_t batt
   puc = (unsigned char *)(&mode);
   appData[appDataSize++] = puc[0];
 
-  Serial.println("Percent:" + String(batteryPercent) + "%");
   puc = (unsigned char *)(&batteryPercent);
   appData[appDataSize++] = puc[0];
 
-  Serial.println("Discharge rate:" + String(dischargeRate) + "%/h");
   puc = (unsigned char *)(&dischargeRate);
   appData[appDataSize++] = puc[0];
 

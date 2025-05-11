@@ -13,7 +13,7 @@ void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, SoftwareSerial *gpsSer
       WIFI_scanning(pos);
       if (pos[0] == 0.0 && pos[1] == 0.0) {  // If fix is not achived try again in 5 seconds
         Serial.println("No WIFI fix, trying again in 5 seconds.");
-        *GPSInterval = GPS_interval_active;  // 5 seconds
+        *GPSInterval = GPS_interval_retry;  // 5 seconds
         WIFITries++;
       } else {  // If fix is achieved, go to sleep
         Serial.print("Latitude: ");
