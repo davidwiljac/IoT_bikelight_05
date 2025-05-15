@@ -1,8 +1,9 @@
-This project is a smart IoT bikelight.
+This project is part of the DTU Course: _34346, Networking technologies and application development for Internet of Things (IoT), spring 2025_.
+# Flashback - A Smart IoT bikelight.
 
-It consists of the a physcial front and back light, a mobile application and webbased backend.
+FlashBack consists of the a physcial front and back light, a mobile application and webbased backend.
 
-The Bikelight utilizes the HT-CT62 chip, which contain an ESP32C3 and an SX1262 LoRa-module.
+The bikelight utilizes the HT-CT62 chip, which contain an ESP32C3 and an SX1262 LoRa-module.
 
 The HT-CT62 chip is mounted on the ESP32 Dev Backplane (HT-CT-ESP_V3), from Heltec. https://heltec.org/project/esp-dev-backplane/
 
