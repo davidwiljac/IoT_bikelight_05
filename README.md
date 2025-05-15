@@ -2,7 +2,7 @@ This project is a smart IoT bikelight.
 
 It consists of the a physcial front and back light, a mobile application and webbased backend.
 
-The Bikelight utilizes an ESP32C3 and LoRa integrated chip HT-CT62.
+The Bikelight utilizes the HT-CT62 chip, which contain an ESP32C3 and an SX1262 LoRa-module.
 
 The HT-CT62 chip is mounted on the ESP32 Dev Backplane (HT-CT-ESP_V3), from Heltec. https://heltec.org/project/esp-dev-backplane/
 
@@ -49,9 +49,9 @@ The ranges are:
 
 | Operation Mode | Time intervals     | Default |
 |----------------|--------------------|---------|
-| Active         | 1 - 64 [Minuts]    | 2 min   |
-| Park           | 1 - 64 [Hours]     | 8 h     |
-| Switch to park | 10 - 640 [Seconds] | 30 s    |
+| Active         | 1 - 63 [Minuts]    | 2 min   |
+| Park           | 1 - 63 [Hours]     | 8 h     |
+| Switch to park | 10 - 630 [Seconds] | 30 s    |
 
 The mobile app uses API calls to get data from the backend and enque data to the device.
 
@@ -69,17 +69,30 @@ The device is always sending 53 bytes.
 |Content:|Lights On/Off| Operation mode| BatteryPercentage| Discharge rate|Latitude|Longitude| Active interval| Park Interval| Switch to park | MACs|
 
 **Operation mode**
-1: Active
-2: Park
-3: Storage
+
+1: Active, 2: Park , 3: Storage
 
 **MACs**
 The bikelight makes a Wifi-scan and sends the MAC adresses and signal strenghts of the five most strongest access points.
 The MACs are therefore each 7 bytes long. The first byte being the signal strength (RSSI) and the rest being the actual MAC adress.
 
 #### Downlink
+There can be sent up to 3 bytes data to the device at a time.
+Each byte is organized as follows:
 
+|Bit: | 1-2 | 3-8 |
+|-----| --- | --- |
+|Content:| Mode to be set | Number |
 
+**Mode to be set**
+01: Active
+
+10: Park
+
+11: Switch to park time
+
+** number **
+An integer from 1-63. This number is then intepreted accordingly to mode
 
 
 # Software
@@ -95,9 +108,7 @@ This is done by:
 The code can now be compiled and downloaded to the board.
 
 # Hardware
-The schematic of the bikelight, the HT-CT62 chip and the ESP32 Dev Backplane can be found in the repository.
-
-To build the bikelight the following hardware is needed
+To build the bikelight the following hardware is needed:
 
 * ESP32 Dev Backplane, with onbuilt HT-CT62 chip
 * 2x Molex antennas
@@ -118,6 +129,19 @@ To build the bikelight the following hardware is needed
 * USB-C datacable
 * Breadboard or solderboard
 * Jumper Wires
+
+The schematic of our design can be seen below.
+
+![billede](https://github.com/user-attachments/assets/0fce5725-220d-447e-ad87-5d1c486c536d)
+
+The Battery and power management of the ESP32 Dev Backplane has been included in the schematic.
+The USB-C interface and management have however not been included.
+
+Moreover, it has been indicated on the HT-CT62 chip, which GPIOs are used for the internal LoRa connections.
+
+
+
+
 
 
 
