@@ -124,9 +124,9 @@ To build the bikelight the following hardware is needed:
 * 5x LED
 * Front- and backlight
 * 2x NPN transistors
-* 5x 10k $\Omega$ Resistors
-* 5x 220 $\Omega$ Resistors
-* 1x 100 $\Omega$ Resistor
+* 5x 10kOhm resistors
+* 5x 220 Ohm resistors
+* 1x 100 Ohm resistor
 * USB-C datacable
 * Breadboard or solderboard
 * Jumper Wires
