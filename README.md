@@ -1,7 +1,9 @@
 This project is a smart IoT bikelight.
+
 It consists of the a physcial front and back light, a mobile application and webbased backend.
 
 The Bikelight utilizes an ESP32C3 and LoRa integrated chip HT-CT62.
+
 The HT-CT62 chip is mounted on the ESP32 Dev Backplane (HT-CT-ESP_V3), from Heltec. https://heltec.org/project/esp-dev-backplane/
 
 This repository contains the arudino code for the bikelight and the schematic of the bikelight.
@@ -10,8 +12,11 @@ This repository contains the arudino code for the bikelight and the schematic of
 
 ## Bikelight
 The bikelight is battery driven and rechargeable.
+
 It has three operation modes, Active, Park and Storage mode.
+
 When connected to power the bikelight automatically goes to active mode, where it turns on when it is moved while it is dark. It then automatically turns off when the bike is parked.
+
 It can be manually turned on and off with a press on a button. If the button is held down it is manually set to park mode.
 By any time double pressing the button the five indicator LEDS show the battery level.
 
@@ -29,6 +34,7 @@ To put the bikelight in storage mode a switch must be flipped.
 The mobile application can be downloaded from ....
 
 In the mobile application, information from the bikelight can be seen.
+
 This includea:
 * The current battery level of the bikelight
 * The current discharge rate / expected battery life time
@@ -38,6 +44,7 @@ This includea:
 * The current operation mode.
 
 Furthermore, the data transfer periods can be updated from the app.
+
 The ranges are:
 
 | Operation Mode | Time intervals     | Default |
@@ -53,13 +60,24 @@ The LoRa communication is facilitated by Cibicom / Loriot.
 From here the recieved data is distributed to AllThingsTalk, where it is decoded.
 
 ### Data transfer protocols
+
+#### Uplink
 The device is always sending 53 bytes.
 
-|Byte | 1 | 2 | 3 | 4 | 5-8 | 9-12 | 13-14 |15-16| 17-18 | 19-53 |
+|Byte: | 1 | 2 | 3 | 4 | 5-8 | 9-12 | 13-14 |15-16| 17-18 | 19-53 |
 |-----| --| --| --| --| ----| ----| -------| ----| ------| ------|
-|Content|Lights| operation mode| BatteryPercentage| Discharge rate|Latitude|Longitude| Active interval| Park Interval| Switch to park | Mac adresses|
+|Content:|Lights On/Off| Operation mode| BatteryPercentage| Discharge rate|Latitude|Longitude| Active interval| Park Interval| Switch to park | MACs|
 
-The MACs are each 7 bytes long. The first byte being the signal strength (RSSI) and the rest being the actual MAC adress.
+**Operation mode**
+1: Active
+2: Park
+3: Storage
+
+**MACs**
+The bikelight makes a Wifi-scan and sends the MAC adresses and signal strenghts of the five most strongest access points.
+The MACs are therefore each 7 bytes long. The first byte being the signal strength (RSSI) and the rest being the actual MAC adress.
+
+#### Downlink
 
 
 
