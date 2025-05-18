@@ -3,7 +3,7 @@
 
 uint8_t GPSTries = 0;
 uint8_t WIFITries = 0;
-uint64_t BSSID[5];
+uint64_t BSSID[20];
 
 void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, SoftwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos, int8_t mode) {
   if (millis() - *lastGPSTime >= *GPSInterval) {
@@ -77,9 +77,10 @@ uint8_t WIFI_scanning(float *pos) {
   Serial.println("Scan start");
   int n = WiFi.scanNetworks(false, false, 1);
   Serial.println("Scan done");
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 20; i++) {
     String BSSIDstr = WiFi.BSSIDstr(i);
     Serial.println("Network " + String(i) + ": " + WiFi.BSSIDstr(i));
+    Serial.println("Strength: " +  String(i) + ": " + WiFi.RSSI(i));
     uint64_t RSSI = WiFi.RSSI(i);
     uint64_t byte1 = strtoul(BSSIDstr.substring(0, 2).c_str(), nullptr, 16);
     uint64_t byte2 = strtoul(BSSIDstr.substring(3, 5).c_str(), nullptr, 16);

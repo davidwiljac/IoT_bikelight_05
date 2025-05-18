@@ -1,5 +1,5 @@
 #include "LoRa.h"
-extern uint64_t BSSID[5];
+extern uint64_t BSSID[20];
 extern uint64_t GPS_interval_active;
 extern uint64_t GPS_interval_parked;
 extern uint64_t switch_to_park_time;
@@ -48,7 +48,7 @@ static void prepareTxFrame(uint8_t port, bool LEDstate, int8_t mode, int8_t batt
   appData[appDataSize++] = puc[0];
   appData[appDataSize++] = puc[1];
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 20; i++) {
     puc = (unsigned char *)(&BSSID[i]);
     for (int j = 6; j >= 0; j--) {
       appData[appDataSize++] = puc[j];
@@ -89,7 +89,8 @@ void LoRaLoop() {
     case DEVICE_STATE_INIT:
       {
         LoRaWAN.init(loraWanClass, loraWanRegion);
-        LoRaWAN.setDefaultDR(3);
+        LoRaWAN.setDefaultDR(4);
+        //LoRaWAN.setDataRateForNoADR(4);
         break;
       }
     case DEVICE_STATE_JOIN:
