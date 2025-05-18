@@ -133,7 +133,7 @@ To build the bikelight the following hardware is needed:
 
 The schematic of our design can be seen below.
 
-![billede](https://github.com/user-attachments/assets/0fce5725-220d-447e-ad87-5d1c486c536d)
+![billede](https://github.com/user-attachments/assets/2de34a3e-da7d-45e3-b607-ba1c3a030d34)
 
 The Battery and power management of the ESP32 Dev Backplane has been included in the schematic.
 The USB-C interface and management have however not been included.
