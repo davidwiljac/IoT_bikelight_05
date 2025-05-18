@@ -109,17 +109,17 @@ void setLED(int8_t batteryPercent, bool showBattery, bool LEDstate) {
   }
   digitalWrite(LEDSer, LOW);
   digitalWrite(LEDClk, LOW);
-  delay(3);
+  delay(1);
   for (int i = 7; i >= 0; i--) {
     digitalWrite(LEDSer, LEDArray[i]);
-    delay(3);
+    delay(1);
     digitalWrite(LEDClk, HIGH);
-    delay(3);
+    delay(1);
     digitalWrite(LEDClk, LOW);
-    delay(3);
+    delay(1);
   }
   digitalWrite(LEDClk, HIGH);
-  delay(3);
+  delay(1);
   digitalWrite(LEDClk, LOW);
-  delay(3);
+  delay(1);
 }

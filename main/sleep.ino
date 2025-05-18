@@ -29,6 +29,7 @@ void esp_sleep(uint8_t mode, uint64_t *GPSInterval) {
       {  // Storage mode
         *GPSInterval = GPS_interval_storage;
         Serial.println("Entering deep sleep");
+        Serial.end();
         setLED(0, true, false);
         // Write a '1' to the sleep bit in the config register https://www.analog.com/media/en/technical-documentation/data-sheets/max17048-max17049.pdf page 11
         uint8_t sleepBatteryConfig = 0x9C;

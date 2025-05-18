@@ -1,7 +1,11 @@
 #include "LoRa.h"
+extern uint64_t BSSID[5];
+extern uint64_t GPS_interval_active;
+extern uint64_t GPS_interval_parked;
+extern uint64_t switch_to_park_time;
 
 /* Prepares the payload of the frame */
-static void prepareTxFrame(uint8_t port, bool LEDstate, int8_t mode, int8_t batteryPercent, int8_t dischargeRate, float lat, float lon, uint64_t GPS_interval_active, uint64_t GPS_interval_parked, uint64_t switch_to_park_time) {
+static void prepareTxFrame(uint8_t port, bool LEDstate, int8_t mode, int8_t batteryPercent, int8_t dischargeRate, float lat, float lon) {
   unsigned char *puc;
 
   appDataSize = 0;
@@ -43,6 +47,13 @@ static void prepareTxFrame(uint8_t port, bool LEDstate, int8_t mode, int8_t batt
   puc = (unsigned char *)(&switchPark);
   appData[appDataSize++] = puc[0];
   appData[appDataSize++] = puc[1];
+
+  for (int i = 0; i < 5; i++) {
+    puc = (unsigned char *)(&BSSID[i]);
+    for (int j = 6; j >= 0; j--) {
+      appData[appDataSize++] = puc[j];
+    }
+  }
 }
 
 // downlink data handle function example
@@ -78,20 +89,20 @@ void LoRaLoop() {
     case DEVICE_STATE_INIT:
       {
         LoRaWAN.init(loraWanClass, loraWanRegion);
-        // both set join DR and DR when ADR off
         LoRaWAN.setDefaultDR(3);
         break;
       }
     case DEVICE_STATE_JOIN:
       {
         LoRaWAN.join();
+        Serial.println("Join done!");
         break;
       }
     case DEVICE_STATE_SEND:
       {
         digitalWrite(LEDSer, 1);  //Enable LORA though the SPI slave select (Also used for LED serial comm)
         delay(100);
-        prepareTxFrame(appPort, LEDstate, mode, batteryPercent, dischargeRate, pos[0], pos[1], GPS_interval_active, GPS_interval_parked, switch_to_park_time);
+        prepareTxFrame(appPort, LEDstate, mode, batteryPercent, dischargeRate, pos[0], pos[1]);
         LoRaWAN.send();
         deviceState = DEVICE_STATE_CYCLE;
         buffer = 0;

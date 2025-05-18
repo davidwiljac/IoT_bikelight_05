@@ -115,7 +115,6 @@ void setup() {
   Serial.begin(115200, SERIAL_8N1, -1, 21);  // Example: use GPIO9 (RX), GPIO10 (TX)
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
   Serial.println("Setup begin");
-
   // Set up the pins
   pinMode(LDRpin, INPUT);
   pinMode(manualButtonpin, INPUT_PULLDOWN);
@@ -128,10 +127,10 @@ void setup() {
 
   // Reset LED
   setLED(0, false, false);
-  pinMode(2, OUTPUT);
 
   // initialize WIFI
-  //initWiFi();
+  initWiFi();
+  btStop();
 
   Wire.begin(SDApin, SCLpin);  // SDA, SCL
   Wire.setClock(100000);       // Set I2C clock speed to 100 kHz
@@ -187,6 +186,7 @@ void setup() {
   accel.setRange(ADXL343_RANGE_2_G);
   attachInterrupt(digitalPinToInterrupt(INT1Pin), int1_isr, RISING);
 
+  // Set accelerometer to active high. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 27
   Wire.beginTransmission(0x53);
   Wire.write(0x31);  // Read data format register
   Wire.endTransmission();
@@ -195,7 +195,6 @@ void setup() {
   if (Wire.available()) {
     currenConfig = Wire.read();
   }
-  // Set accelerometer to active high. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 27
   currenConfig &= 0xDF;
 
   Wire.beginTransmission(0x53);
@@ -227,9 +226,9 @@ void setup() {
 
 
   // Set up the GPS
-  GPS_interval_active = 30 * 1000;    // 30 seconds
-  GPS_interval_parked = 30 * 1000;    // 2 minutes
-  switch_to_park_time = 1000 * 1000;  // 60 seconds
+  GPS_interval_active = 30 * 1000;    // 120 seconds
+  GPS_interval_parked = 8 * 60 * 60 * 1000;    // 8 hours
+  switch_to_park_time = 120 * 1000;  // 30 seconds
   GPSInterval = GPS_interval_active;
 
   gpsSerial.begin(GPSBaud);
@@ -247,6 +246,7 @@ void setup() {
       printf("Wakeup caused by GPIO\n");
       break;
     case ESP_SLEEP_WAKEUP_TIMER:
+      mode = 1;
       printf("Wakeup caused by timer\n");
       break;
     case ESP_SLEEP_WAKEUP_UNDEFINED:
@@ -374,7 +374,7 @@ void active() {
   }
 
   // Scans location if appropriate time has passed
-  //getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
+  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
 void park() {
@@ -386,20 +386,12 @@ void park() {
     Serial.println("Going back to active mode!");
   }
 
-  // if (millis() - lastMoveTime > switch_to_storage_time) {
-  //   mode = 2;  // Switch to storage mode after a period of inactivity
-  //   GPSInterval = GPS_interval_storage;
-  //   lastMoveTime = millis();               // Reset the last move time
-  //   lastGPSTime = millis() - GPSInterval;  // Force GPS to update
-  //   Serial.println("Switching to storage mode due to inactivity.");
-  //   return;
-  // }
   getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
 void storage() {
   esp_sleep(mode, &GPSInterval);
-  getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
+  //getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
 //--------------------------------------------------------------------
@@ -411,13 +403,13 @@ void initWiFi() {
   delay(100);
   Serial.println("Setup done");
 
-  // // Connect to WiFi
-  Serial.print("Connecting ");
-  WiFi.begin(myssid, mypass);
+  // // // Connect to WiFi
+  // Serial.print("Connecting ");
+  // WiFi.begin(myssid, mypass);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println(WiFi.localIP());
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(500);
+  //   Serial.print(".");
+  // }
+  // Serial.println(WiFi.localIP());
 }
