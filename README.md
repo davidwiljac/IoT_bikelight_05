@@ -133,7 +133,8 @@ To build the bikelight the following hardware is needed:
 
 The schematic of our design can be seen below.
 
-![billede](https://github.com/user-attachments/assets/f452d750-0667-4a01-936c-16ffe7168e8b)
+![billede](https://github.com/user-attachments/assets/5aa286e4-36e6-4dcc-8f8f-ff76012bdbe6)
+
 
 
 
