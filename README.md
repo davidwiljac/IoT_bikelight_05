@@ -113,7 +113,7 @@ To build the bikelight the following hardware is needed:
 
 * ESP32 Dev Backplane, with onbuilt HT-CT62 chip
 * 2x Molex antennas
-* Battery
+* Rechargeable Lithium-ion Battery
 * MAX17048 Battery Monitor
 * ADXL345 Accelerometer
 * Light Dependent Resistor (LDR)
