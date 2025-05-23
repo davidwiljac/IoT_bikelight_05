@@ -1,22 +1,22 @@
 This project is part of the DTU Course: _34346, Networking technologies and application development for Internet of Things (IoT), spring 2025_.
-# Flashback - A Smart IoT bikelight.
+# Flashback - A Smart IoT Bike Light.
 
 FlashBack consists of the a physcial front and back light, a mobile application and webbased backend.
 
-The bikelight utilizes the HT-CT62 chip, which contain an ESP32C3 and an SX1262 LoRa-module.
+The bike light utilizes the HT-CT62 chip, which contain an ESP32C3 and an SX1262 LoRa-module.
 
 The HT-CT62 chip is mounted on the ESP32 Dev Backplane (HT-CT-ESP_V3), from Heltec. https://heltec.org/project/esp-dev-backplane/
 
-This repository contains the arudino code for the bikelight and the schematic of the bikelight.
+This repository contains the arudino code for the bike light and the schematic of the bike light.
 
-# Functionality of the bikelight
+# Functionality of the bike light
 
-## Bikelight
-The bikelight is battery driven and rechargeable.
+## Bike light
+The bike light is battery driven and rechargeable.
 
 It has three operation modes, Active, Park and Storage mode.
 
-When connected to power the bikelight automatically goes to active mode, where it turns on when it is moved while it is dark. It then automatically turns off when the bike is parked.
+When connected to power the bike light automatically goes to active mode, where it turns on when it is moved while it is dark. It then automatically turns off when the bike is parked.
 
 It can be manually turned on and off with a press on a button. If the button is held down it is manually set to park mode.
 By any time double pressing the button the five indicator LEDS show the battery level.
@@ -29,17 +29,17 @@ By any time double pressing the button the five indicator LEDS show the battery 
 | 60-80%        | 4                 |
 | 80-100%       | 5                 |
 
-To put the bikelight in storage mode a switch must be flipped.
+To put the bike light in storage mode a switch must be flipped.
 
 ## Mobile Application
-The mobile application can be downloaded from ....
+The mobile application can be downloaded from https://drive.google.com/file/d/12I2f2bF7VSXXHKXbHlzPAXHOnTvUsZBw/view?usp=sharing
 
-In the mobile application, information from the bikelight can be seen.
+In the mobile application, information from the bike light can be seen.
 
 This includea:
-* The current battery level of the bikelight
+* The current battery level of the bike light
 * The current discharge rate / expected battery life time
-* The last location of the bikelight
+* The last location of the bike light
 * The current data transfer period in the three operation modes
 * Wheter the light is currently on or off.
 * The current operation mode.
