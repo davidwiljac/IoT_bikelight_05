@@ -32,13 +32,12 @@ By any time double pressing the button the five indicator LEDS show the battery 
 To put the bike light in storage mode a switch must be flipped.
 
 ## Mobile Application
-The mobile application can be downloaded from https://drive.google.com/file/d/12I2f2bF7VSXXHKXbHlzPAXHOnTvUsZBw/view?usp=sharing
+The mobile application can be downloaded from: https://drive.google.com/file/d/12I2f2bF7VSXXHKXbHlzPAXHOnTvUsZBw/view?usp=sharing
 
 In the mobile application, information from the bike light can be seen.
 
-This includea:
+This include:
 * The current battery level of the bike light
-* The current discharge rate / expected battery life time
 * The last location of the bike light
 * The current data transfer period in the three operation modes
 * Wheter the light is currently on or off.
@@ -50,7 +49,7 @@ The ranges are:
 
 | Operation Mode | Time intervals     | Default |
 |----------------|--------------------|---------|
-| Active         | 1 - 63 [Minuts]    | 2 min   |
+| Active         | 1 - 63 [Minutes]   | 2 min   |
 | Park           | 1 - 63 [Hours]     | 8 h     |
 | Switch to park | 10 - 630 [Seconds] | 30 s    |
 
@@ -71,10 +70,13 @@ The device is always sending 53 bytes.
 
 **Operation mode**
 
+A number indicating the mode:
+
 1: Active, 2: Park , 3: Storage
 
 **MACs**
-The bikelight makes a Wifi-scan and sends the MAC adresses and signal strenghts of the five most strongest access points.
+
+The bikelight makes a WiFi-scan and sends the MAC adresses and signal strenghts of the five most strongest access points.
 The MACs are therefore each 7 bytes long. The first byte being the signal strength (RSSI) and the rest being the actual MAC adress.
 
 #### Downlink
@@ -86,13 +88,15 @@ Each byte is organized as follows:
 |Content:| Mode to be set | Number |
 
 **Mode to be set**
+
 01: Active
 
 10: Park
 
 11: Switch to park time
 
-** number **
+**Number**
+
 An integer from 1-63. This number is then intepreted accordingly to mode
 
 
@@ -109,11 +113,11 @@ This is done by:
 The code can now be compiled and downloaded to the board.
 
 # Hardware
-To build the bikelight the following hardware is needed:
+To build the bike light the following hardware is needed:
 
 * ESP32 Dev Backplane, with onbuilt HT-CT62 chip
 * 2x Molex antennas
-* Rechargeable Lithium-ion Battery
+* Rechargeable Lithium-ion Battery and battery holder
 * MAX17048 Battery Monitor
 * ADXL345 Accelerometer
 * Light Dependent Resistor (LDR)
@@ -134,8 +138,6 @@ To build the bikelight the following hardware is needed:
 The schematic of our design can be seen below.
 
 ![billede](https://github.com/user-attachments/assets/1f1d4ea3-5217-459d-bb75-25cb235001ce)
-
-
 
 
 
