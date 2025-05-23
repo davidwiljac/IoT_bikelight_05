@@ -118,7 +118,7 @@ To build the bikelight the following hardware is needed:
 * ADXL345 Accelerometer
 * Light Dependent Resistor (LDR)
 * GY-NEO6MV2 GNSS module
-* 74HC595 Shift Register
+* SN74HC595 Shift Register
 * Push-botton
 * Single pole double throw switch
 * 5x LED
