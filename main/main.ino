@@ -3,24 +3,25 @@
 // Pins
 #define LDRpin 2
 #define manualButtonpin 3
-#define INT1Pin 0
-#define RxPin 1
+#define INT1Pin 0   //accelerometer interrupt
+#define RxPin 1     //receive pin for GNSS
 #define TxPin 1000  // Not actually used, but has to be set to something
-#define SDApin 19
-#define SCLpin 18
-#define LEDSer 8
-#define LEDClk 9
+#define SDApin 19   // I2C SDA
+#define SCLpin 18   // I2C SCL
+#define LEDSer 8    // datapin for shift register
+#define LEDClk 9    // clockpin for shift register
 #define storageSwitch 20
 
-// Global variables
-int8_t mode = 0;  // 0 = Active, 1 = Parked, 2 = Storage
-
+// initialize Sensor modules
 Adafruit_MAX17048 batteryTracker;
-Adafruit_ADXL343 accel = Adafruit_ADXL343(12345);
+Adafruit_ADXL343 accel = Adafruit_ADXL343(12345);  // accelerometer
 
 #define GPSBaud 9600
 TinyGPSPlus gps;
-SoftwareSerial gpsSerial(RxPin, TxPin);
+SoftwareSerial gpsSerial(RxPin, TxPin);  // software serial for UART connection to GNSS module.
+
+// Global variables
+int8_t mode = 0;  // 0 = Active, 1 = Parked, 2 = Storage
 
 bool buttonState = false;
 bool showBattery = false;
@@ -53,26 +54,8 @@ uint64_t batteryIndicatorTime = 0;
 uint16_t findSensorTime = 0xFFFF;
 // ---------------------
 
-// const char *myssid = "HUAWEI P30 - Emil";  // your network SSID (name)
-// const char *mypass = "HotSpot!36";         // your network password
-
-// const char *myssid = "TP-Link_79DE";
-// const char *mypass = "00895576";
-
-const char *myssid = "Galaxy S20+ 5G ecb1";
-const char *mypass = "KES12345";
-
-// Credentials for Google GeoLocation API...
-const char *Host = "www.googleapis.com";
-String thisPage = "/geolocation/v1/geolocate?key=";
-String key = "AIzaSyDo9og6Y61VADw3M3yrXWketfSZeoTMQTE";
-
-String jsonString = "{\n";
-
-int more_text = 1;  // set to 1 for more debug output
-
 // LoRa parameters
-/* OTAA para*/
+/* OTAA para*/  // device parameters for Cibicom
 uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x06, 0x53, 0xC8 };
 uint8_t appEui[] = { 0xBE, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x16, 0x47 };
 uint8_t appKey[] = { 0x38, 0xAA, 0xBB, 0x98, 0xFA, 0xE1, 0x7B, 0x7B, 0x1E, 0xDC, 0x81, 0x92, 0x18, 0xD6, 0x3A, 0xB1 };
@@ -89,11 +72,10 @@ uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 
 LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 
 /*LoraWan Class, Class A and Class C are supported*/
-DeviceClass_t loraWanClass = CLASS_A;
+DeviceClass_t loraWanClass = CLASS_A;  // Class A is chosen for best battery life
 
 /*the application data transmission duty cycle.  value in [ms].*/
-uint32_t appTxDutyCycle = 10000;
-uint32_t wifi_delay = 60000;
+uint32_t appTxDutyCycle = 10000;  // wait a minimum of approximatly 10s between sending
 
 /*OTAA or ABP*/
 bool overTheAirActivation = true;
@@ -107,19 +89,16 @@ bool isTxConfirmed = true;
 /* Application port */
 uint8_t appPort = 2;
 
-uint8_t buffer = 0;
-int last_time = 0;
-
 uint8_t confirmedNbTrials = 4;
 
-uint8_t received_data;
+// variables for storing received data
 uint8_t data = 1;
 uint8_t DataReceived[4];
 
 void setup() {
   Serial.end();
-  Serial.begin(115200, SERIAL_8N1, -1, 21);  // Example: use GPIO9 (RX), GPIO10 (TX)
-  Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
+  Serial.begin(115200, SERIAL_8N1, -1, 21);  // Start the serial connection to the computer. RX = -1 because it is not used after download.
+  Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);    // initialize Heltec board
   Serial.println("Setup begin");
   // Set up the pins
   pinMode(LDRpin, INPUT);
@@ -162,7 +141,7 @@ void setup() {
     currentMode = Wire.read();
   }
 
-  // Write a 1 to the ENSLEEP bit to enable sleep mode for future use and send it https://www.analog.com/media/en/technical-documentation/data-sheets/max17048-max17049.pdf page 11
+  // Write a 1 to the ENSLEEP bit to enable sleep mode for future use and send it. ref: https://www.analog.com/media/en/technical-documentation/data-sheets/max17048-max17049.pdf page 11
   currentMode &= B00100000;
   Wire.beginTransmission(0x36);
   Wire.write(0x06);  // Write data format register
@@ -232,12 +211,13 @@ void setup() {
 
 
   // Set up the GPS
+  // default wake-up/scan intervals in the modes
   GPS_interval_active = 30 * 1000;           // 120 seconds
   GPS_interval_parked = 8 * 60 * 60 * 1000;  // 8 hours
   switch_to_park_time = 120 * 1000;          // 30 seconds
-  GPSInterval = GPS_interval_active;
+  GPSInterval = GPS_interval_active;         // it starts in active mode
 
-  gpsSerial.begin(GPSBaud);
+  gpsSerial.begin(GPSBaud);  // begin UART connection
 
   // Enable wakeups from button and acc intterupt
   uint64_t mask = 0;
@@ -267,14 +247,17 @@ void setup() {
 }
 
 void loop() {
+  // check if device is set to storage mode by manual switch
   bool storageEnable = !digitalRead(storageSwitch);
   if (storageEnable && mode != 2) {
     mode = 2;
     Serial.println("Switching to storage mode!");
   }
+
   //Checks the LoRa state and acts accordingly
   LoRaLoop();
 
+  //run code according to operation mode
   switch (mode) {
     case 0:  // Active mode
       active();
@@ -296,20 +279,21 @@ void int1_isr(void) {
   accFlag = true;
 }
 
+// ----------------------------------------------------------------------------
 void active() {
+  // reset the accelerometer flag, if it has been set to active mode due to an accelerometer interrupt
   if (accFlag) {
     accFlag = false;
   }
 
+  //Check the accelerometer
   accel.checkInterrupts();
 
   // Reads battery status
-  //batteryPercent = int(batteryTracker.cellPercent());
-  batteryPercent = 10;
+  batteryPercent = int(batteryTracker.cellPercent());
+  //batteryPercent = 10; // Hardcoded to 10 in the demo-session, to show the low battery-warning
   dischargeRate = int(batteryTracker.chargeRate());
 
-  // Read the light sensor
-  int light = analogRead(LDRpin);
 
   // Read the button and store the state in a list
   bool state = digitalRead(manualButtonpin);
@@ -331,17 +315,23 @@ void active() {
     LEDstate = false;
     buttonState = false;
     accFlag = false;
-    setLED(batteryPercent, showBattery, LEDstate);
+    setLED(batteryPercent, showBattery, LEDstate);  //turn of all of the LEDs
     Serial.println("Switching to park mode due to manual turn off.");
     return;
   }
 
-  if (showBattery && millis() - batteryIndicatorTime > 5000) {  // If the battery indicators have been on for 5 seconds, turn off
+  // If the battery indicators have been on for 5 seconds, turn off
+  if (showBattery && millis() - batteryIndicatorTime > 5000) {
     showBattery = false;
     setLED(batteryPercent, showBattery, LEDstate);
   }
 
-  if (light < 1000) {  // Start low light timer if below certain level
+  
+  // Read the light sensor
+  int light = analogRead(LDRpin);
+
+  // set the low light flag according to the LDR data
+  if (light < 1000) {  // Start low light timer if below certain level, Threshold is 1000, in a range from 0-4047.
     if (!lowLight) {
       Serial.println("Low light detected!");
       darknessTime = millis();
@@ -357,6 +347,7 @@ void active() {
     darknessTime = 0xFFFFFFFFFFFFF;
   }
 
+  // Low-battery warning, blinking the LEDs
   if (batteryPercent < 20) {
     if ((millis() - lowBatteryTime > 30000) && !shouldBlink) {
       shouldBlink = true;
@@ -383,19 +374,20 @@ void active() {
   }
 
 
-  if (buttonState || ((millis() - darknessTime > 5000) && lowLight)) {  // Turn LED on/off
+  //Turn ON/Off the front and back lights accoring to, button-press aand light level
+  if (buttonState || ((millis() - darknessTime > 5000) && lowLight)) {  // Turn LED on
     if (!LEDstate) {
       setLED(batteryPercent, showBattery, true);
     }
     LEDstate = true;
-  } else if ((millis() - lightTime > 5000) && !lowLight) {
+  } else if ((millis() - lightTime > 5000) && !lowLight) { //Turn LED Off
     if (LEDstate) {
       setLED(batteryPercent, showBattery, false);
     }
     LEDstate = false;
   }
 
-
+  // check if mode should be set to Parked
   if (millis() - lastMoveTime > switch_to_park_time) {  // Switch to park mode after an amout of time has passed
     mode = 1;
     GPSInterval = GPS_interval_parked;
@@ -417,7 +409,7 @@ void active() {
 void park() {
   if (accFlag) {  // If accelerometer pings, go to active
     accFlag = false;
-    mode = 0;
+    mode = 0; // go to active
     accel.checkInterrupts();
     GPSInterval = GPS_interval_active;
     Serial.println("Going back to active mode!");
@@ -427,7 +419,7 @@ void park() {
 }
 
 void storage() {
-  esp_sleep(mode, &GPSInterval);
+  esp_sleep(mode, &GPSInterval); // set mode to deep sleep
   //getPos(&lastGPSTime, &GPSInterval, &gpsSerial, &gps, pos, mode);
 }
 
@@ -440,13 +432,4 @@ void initWiFi() {
   delay(100);
   Serial.println("Setup done");
 
-  // // // Connect to WiFi
-  // Serial.print("Connecting ");
-  // WiFi.begin(myssid, mypass);
-
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(500);
-  //   Serial.print(".");
-  // }
-  // Serial.println(WiFi.localIP());
 }
