@@ -1,6 +1,10 @@
 This project is part of the DTU Course: _34346, Networking technologies and application development for Internet of Things (IoT), spring 2025_.
 # Flashback - A Smart IoT Bike Light.
 
+
+<img src="https://github.com/user-attachments/assets/7ef2bb54-643b-4b99-817a-8a6369e04453" alt="Flashback Bike Light" width="400"/>
+
+
 FlashBack consists of the a physcial front and back light, a mobile application and webbased backend.
 
 The bike light utilizes the HT-CT62 chip, which contain an ESP32C3 and an SX1262 LoRa-module.
