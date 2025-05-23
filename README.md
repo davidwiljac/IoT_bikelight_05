@@ -1,8 +1,8 @@
 This project is part of the DTU Course: _34346, Networking technologies and application development for Internet of Things (IoT), spring 2025_.
 
-<img src="https://github.com/user-attachments/assets/b148089f-7273-476c-a812-d38bbbe342ea" alt="Flashback Bike Light" width="400"/>
-
 # Flashback - A Smart IoT Bike Light
+
+<img src="https://github.com/user-attachments/assets/b148089f-7273-476c-a812-d38bbbe342ea" alt="Flashback Bike Light" width="400"/>
 
 FlashBack consists of the a physcial front and back light, a mobile application and webbased backend.
 
