@@ -67,7 +67,7 @@ From here the recieved data is distributed to AllThingsTalk, where it is decoded
 #### Uplink
 The device is always sending 53 bytes.
 
-|Byte: | 1 | 2 | 3 | 4 | 5-8 | 9-12 | 13-14 |15-16| 17-18 | 19-53 |
+|Byte: | 1 | 2 | 3 | 4 | 5-8 | 9-12 | 13-14 |15-16| 17-18 | 19-158 |
 |-----| --| --| --| --| ----| ----| -------| ----| ------| ------|
 |Content:|Lights On/Off| Operation mode| BatteryPercentage| Discharge rate|Latitude|Longitude| Active interval| Park Interval| Switch to park | MACs|
 
