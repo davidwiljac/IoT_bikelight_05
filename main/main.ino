@@ -28,6 +28,9 @@ bool showBattery = false;
 uint64_t GPSInterval = 1000;
 bool LEDstate = false;
 bool lowLight = false;
+bool shouldBlink = false;
+bool blinkStatus = false;
+uint8_t numberOfBlinks = 0;
 
 int_config g_int_config_enabled = { 0 };
 int_config g_int_config_map = { 0 };
@@ -41,7 +44,10 @@ int8_t dischargeRate;
 
 // Timer variables
 uint64_t lastMoveTime = 0;
-uint64_t lastOnTime = 0;
+uint64_t lightTime = 0;
+uint64_t lowBatteryTime = 0;
+uint64_t lowBatteryBlinkTime = 0;
+uint64_t darknessTime = 0;
 uint64_t lastGPSTime = 0;
 uint64_t batteryIndicatorTime = 0;
 uint16_t findSensorTime = 0xFFFF;
@@ -202,7 +208,7 @@ void setup() {
   Wire.write(currenConfig);
   Wire.endTransmission();
 
-  // Set tap sensitivity to 2g. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 24
+  // Set tap sensitivity to 1.6g. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 24
   Wire.beginTransmission(0x53);
   Wire.write(0x1D);
   Wire.write(32);
@@ -226,9 +232,9 @@ void setup() {
 
 
   // Set up the GPS
-  GPS_interval_active = 30 * 1000;    // 120 seconds
-  GPS_interval_parked = 8 * 60 * 60 * 1000;    // 8 hours
-  switch_to_park_time = 120 * 1000;  // 30 seconds
+  GPS_interval_active = 30 * 1000;           // 120 seconds
+  GPS_interval_parked = 8 * 60 * 60 * 1000;  // 8 hours
+  switch_to_park_time = 120 * 1000;          // 30 seconds
   GPSInterval = GPS_interval_active;
 
   gpsSerial.begin(GPSBaud);
@@ -298,7 +304,8 @@ void active() {
   accel.checkInterrupts();
 
   // Reads battery status
-  batteryPercent = int(batteryTracker.cellPercent());
+  //batteryPercent = int(batteryTracker.cellPercent());
+  batteryPercent = 10;
   dischargeRate = int(batteryTracker.chargeRate());
 
   // Read the light sensor
@@ -337,21 +344,51 @@ void active() {
   if (light < 1000) {  // Start low light timer if below certain level
     if (!lowLight) {
       Serial.println("Low light detected!");
-      lastOnTime = millis();
+      darknessTime = millis();
     }
     lowLight = true;
+    lightTime = 0xFFFFFFFFFFFFF;
   } else {
+    if (lowLight) {
+      Serial.println("High light detected!");
+      lightTime = millis();
+    }
     lowLight = false;
-    lastOnTime = 0xFFFFFFFFFFFFF;
+    darknessTime = 0xFFFFFFFFFFFFF;
+  }
+
+  if (batteryPercent < 20) {
+    if ((millis() - lowBatteryTime > 30000) && !shouldBlink) {
+      shouldBlink = true;
+      lowBatteryBlinkTime = millis();
+    }
+  }
+
+  if (shouldBlink && (millis() - lowBatteryBlinkTime > 100)) {
+    if (blinkStatus) {
+      setLED(100, true, true);
+    } else {
+      setLED(0, true, false);
+    }
+    blinkStatus = !blinkStatus;
+    lowBatteryBlinkTime = millis();
+    if (numberOfBlinks > 6) {
+      shouldBlink = false;
+      lowBatteryTime = millis();
+      numberOfBlinks = 0;
+      setLED(batteryPercent, showBattery, LEDstate);
+    } else {
+      numberOfBlinks++;
+    }
   }
 
 
-  if (buttonState || ((millis() - lastOnTime > 5000) && lowLight)) {  // Turn LED on/off
+  if (buttonState || ((millis() - darknessTime > 5000) && lowLight)) {  // Turn LED on/off
     if (!LEDstate) {
       setLED(batteryPercent, showBattery, true);
     }
     LEDstate = true;
-  } else {
+  } else if ((millis() - lightTime > 5000) && !lowLight) {
     if (LEDstate) {
       setLED(batteryPercent, showBattery, false);
     }

@@ -35,18 +35,18 @@ static void prepareTxFrame(uint8_t port, bool LEDstate, int8_t mode, int8_t batt
 
   uint16_t gps_active = GPS_interval_active / 1000 / 60;
   puc = (unsigned char *)(&gps_active);
-  appData[appDataSize++] = puc[0];
   appData[appDataSize++] = puc[1];
+  appData[appDataSize++] = puc[0];
 
   uint16_t gps_parked = GPS_interval_parked / 1000 / 60 / 60;
   puc = (unsigned char *)(&gps_parked);
-  appData[appDataSize++] = puc[0];
   appData[appDataSize++] = puc[1];
+  appData[appDataSize++] = puc[0];
 
   uint16_t switchPark = switch_to_park_time / 1000 / 10;
   puc = (unsigned char *)(&switchPark);
-  appData[appDataSize++] = puc[0];
   appData[appDataSize++] = puc[1];
+  appData[appDataSize++] = puc[0];
 
   for (int i = 0; i < 20; i++) {
     puc = (unsigned char *)(&BSSID[i]);
@@ -101,6 +101,7 @@ void LoRaLoop() {
       }
     case DEVICE_STATE_SEND:
       {
+        Serial.println("Sending!");
         digitalWrite(LEDSer, 1);  //Enable LORA though the SPI slave select (Also used for LED serial comm)
         delay(100);
         prepareTxFrame(appPort, LEDstate, mode, batteryPercent, dischargeRate, pos[0], pos[1]);

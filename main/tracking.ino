@@ -6,6 +6,8 @@ uint8_t WIFITries = 0;
 uint64_t BSSID[20];
 
 void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, SoftwareSerial *gpsSerial, TinyGPSPlus *gps, float *pos, int8_t mode) {
+  pos[0] = 0;
+  pos[1] = 0;
   if (millis() - *lastGPSTime >= *GPSInterval) {
     if (deviceState == DEVICE_STATE_SLEEP) { //Check if ready to send again
       deviceState = DEVICE_STATE_SEND;
@@ -16,7 +18,7 @@ void getPos(uint64_t *lastGPSTime, uint64_t *GPSInterval, SoftwareSerial *gpsSer
     if (WIFITries < WIFI_max_tries) {
       WiFi.setSleep(false);
       uint8_t n = WIFI_scanning(pos);
-      if (n < 3) {  // If fix is not achived try again in 5 seconds
+      if (n < 10) {  // If fix is not achived try again in 5 seconds
         Serial.println("No WIFI fix, trying again in 5 seconds.");
         *GPSInterval = GPS_interval_retry;  // 5 seconds
         WIFITries++;
@@ -79,8 +81,6 @@ uint8_t WIFI_scanning(float *pos) {
   Serial.println("Scan done");
   for (int i = 0; i < 20; i++) {
     String BSSIDstr = WiFi.BSSIDstr(i);
-    Serial.println("Network " + String(i) + ": " + WiFi.BSSIDstr(i));
-    Serial.println("Strength: " +  String(i) + ": " + WiFi.RSSI(i));
     uint64_t RSSI = WiFi.RSSI(i);
     uint64_t byte1 = strtoul(BSSIDstr.substring(0, 2).c_str(), nullptr, 16);
     uint64_t byte2 = strtoul(BSSIDstr.substring(3, 5).c_str(), nullptr, 16);

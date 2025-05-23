@@ -18,13 +18,15 @@ void esp_sleep(uint8_t mode, uint64_t *GPSInterval) {
       *GPSInterval = GPS_interval_active;
       break;
     case 1:  // Parked mode
-      Serial.println("Entering light sleep");
-      *GPSInterval = GPS_interval_parked;
-      setLED(0, true, false);
-      esp_sleep_enable_timer_wakeup(GPS_interval_parked * 1000);
-      esp_light_sleep_start();
-      Serial.println("Woke up from light sleep");
-      break;
+      {
+        Serial.println("Entering light sleep");
+        *GPSInterval = GPS_interval_parked;
+        setLED(0, true, false);
+        esp_sleep_enable_timer_wakeup(GPS_interval_parked * 1000);
+        esp_err_t err = esp_light_sleep_start();
+        esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
+        break;
+      }
     case 2:
       {  // Storage mode
         *GPSInterval = GPS_interval_storage;
