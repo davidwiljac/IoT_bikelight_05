@@ -306,7 +306,7 @@ void active() {
     showBattery = true;
     batteryIndicatorTime = millis();
     setLED(batteryPercent, showBattery, LEDstate);
-  } else if (clickMode == 3) {  // Go to park mode !!TODO: Should go to storage mode??? !!
+  } else if (clickMode == 3) {  // Go to park mode
     mode = 1;
     GPSInterval = GPS_interval_parked;
     lastMoveTime = millis();               // Reset the last move time
