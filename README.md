@@ -13,6 +13,7 @@ The HT-CT62 chip is mounted on the ESP32 Dev Backplane (HT-CT-ESP_V3), from Helt
 This repository contains the arudino code for the bike light and the schematic of the bike light.
 
 Arduino code in folder: "main"
+
 KiCAD Schematic in folder: "FlashBack_Schematic"
 
 # Functionality of the bike light
