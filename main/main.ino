@@ -187,10 +187,10 @@ void setup() {
   Wire.write(currenConfig);
   Wire.endTransmission();
 
-  // Set tap sensitivity to 1.6g. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 24
+  // Set tap sensitivity to 2g. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 24
   Wire.beginTransmission(0x53);
   Wire.write(0x1D);
-  Wire.write(32);
+  Wire.write(32); // 32* 62,5mg = 2g
   Wire.endTransmission();
 
   // Set to low power mode. See https://www.analog.com/media/en/technical-documentation/data-sheets/adxl345.pdf page 25
