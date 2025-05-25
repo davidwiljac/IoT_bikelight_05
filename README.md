@@ -43,6 +43,8 @@ To put the bike light in storage mode a switch must be flipped.
 ## Mobile Application
 The mobile application can be downloaded from: https://drive.google.com/file/d/12I2f2bF7VSXXHKXbHlzPAXHOnTvUsZBw/view?usp=sharing
 
+The GitHub Repository for the app can be found here: https://github.com/4444T7777/Flashback_IoT
+
 In the mobile application, information from the bike light can be seen.
 
 This include:
